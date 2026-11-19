@@ -70,4 +70,20 @@ final class RouterAndSqlTest extends TestCase
         }
         $this->assertSame([], $offenders);
     }
+
+    /** The checker also refuses e.g. 'system' passed as an argument (it looks like a callback). */
+    public function testNoDangerousFunctionNamesAsStringArguments(): void
+    {
+        $bad = [];
+        foreach (['app', 'public', 'views', 'migrations', 'data', 'bin'] as $dir) {
+            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(BL_ROOT . '/' . $dir));
+            foreach ($it as $f) {
+                if ($f->isFile() && $f->getExtension() === 'php'
+                    && preg_match("/[(,]\\s*'(system|exec|shell_exec|passthru|popen|proc_open|eval|assert)'/", (string) file_get_contents($f->getPathname()))) {
+                    $bad[] = $f->getPathname();
+                }
+            }
+        }
+        $this->assertSame([], $bad);
+    }
 }

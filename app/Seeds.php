@@ -81,7 +81,7 @@ final class Seeds
         $id = (int) $db->lastInsertId();
         $db->prepare("INSERT INTO demos (business_id, url, status, version, notes) VALUES (?, ?, 'approved', 1, ?)")
             ->execute([$id, 'https://primebarbershop.testvane.org/', 'Ръчно направено демо с онлайн записване (PHP + SQLite).']);
-        $db->prepare("INSERT INTO business_events (business_id, type, message, actor) VALUES (?, 'import', ?, 'system')")
+        $db->prepare("INSERT INTO business_events (business_id, type, message, actor) VALUES (?, 'import', ?, 'auto')")
             ->execute([$id, 'Импортиран от съществуващото демо primebarbershop.testvane.org']);
     }
 

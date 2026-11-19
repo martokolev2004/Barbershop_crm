@@ -96,7 +96,7 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
       </form>
       <ul class="timeline">
         <?php foreach ($events as $ev): ?>
-          <li><time><?= fmt_date($ev['created_at'], true) ?></time><div class="t-<?= e($ev['type']) ?>"><?= e($ev['message']) ?><?php if ($ev['actor'] && $ev['actor'] !== 'system'): ?> <span class="muted small">· <?= e($ev['actor']) ?></span><?php endif; ?></div></li>
+          <li><time><?= fmt_date($ev['created_at'], true) ?></time><div class="t-<?= e($ev['type']) ?>"><?= e($ev['message']) ?><?php if ($ev['actor'] && $ev['actor'] !== 'auto' && $ev['actor'] !== 'system'): ?> <span class="muted small">· <?= e($ev['actor']) ?></span><?php endif; ?></div></li>
         <?php endforeach; ?>
       </ul>
     </section>

@@ -182,7 +182,7 @@ final class App
 
     public function actor(): string
     {
-        return $this->auth->username() ?? 'system';
+        return $this->auth->username() ?? 'auto';
     }
 
     /** @param array<string,mixed> $vars */

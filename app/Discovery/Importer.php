@@ -47,7 +47,7 @@ final class Importer
         if ($best !== null && $score >= self::AUTO_MATCH) {
             $this->saveSource($best, $c, $reasons, null);
             $this->fillAndCompare($best, $c, true);
-            $this->events->add($best, 'source', 'Свързан с ' . self::sourceLabel($c->source) . " ($reasons)", 'system');
+            $this->events->add($best, 'source', 'Свързан с ' . self::sourceLabel($c->source) . " ($reasons)", 'auto');
             return ['action' => 'updated', 'business_id' => $best, 'score' => $score, 'reasons' => $reasons];
         }
 
@@ -171,7 +171,7 @@ final class Importer
         ]);
         $id = (int) $this->db->lastInsertId();
         $this->saveSource($id, $c, 'нов запис', null);
-        $this->events->add($id, 'discovered', 'Открит в ' . self::sourceLabel($c->source) . " ($context)" . ($c->closed ? ' — отбелязан като затворен' : ''), 'system');
+        $this->events->add($id, 'discovered', 'Открит в ' . self::sourceLabel($c->source) . " ($context)" . ($c->closed ? ' — отбелязан като затворен' : ''), 'auto');
         return $id;
     }
 
@@ -244,7 +244,7 @@ final class Importer
             $this->db->prepare('UPDATE businesses SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($params);
         }
         if ($conflicts && $logConflicts) {
-            $this->events->add($id, 'conflict', 'Различни данни в ' . self::sourceLabel($c->source) . ': ' . implode('; ', $conflicts), 'system');
+            $this->events->add($id, 'conflict', 'Различни данни в ' . self::sourceLabel($c->source) . ': ' . implode('; ', $conflicts), 'auto');
         }
         return (bool) $set;
     }
