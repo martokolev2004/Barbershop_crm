@@ -1,0 +1,12 @@
+/vendor/
+/config/config.php
+/config/setup_token.hash
+/storage/backups/*
+!/storage/backups/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+*.sql.gz
+.phpunit.result.cache
+.phpunit.cache/
+/build/
+.env

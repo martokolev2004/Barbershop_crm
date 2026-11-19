@@ -1,0 +1,38 @@
+{
+    "name": "martokolev2004/barberlead",
+    "description": "BarberLead CRM – discovery, qualification, demo and outreach tracking for Bulgarian barbershops",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2",
+        "ext-pdo": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^9.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "BarberLead\\": "app/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "BarberLead\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "find app bin public tests views migrations -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null",
+        "analyse": "phpstan analyse --no-progress --memory-limit=512M",
+        "test": "phpunit",
+        "check": [
+            "@lint",
+            "@analyse",
+            "@test"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
