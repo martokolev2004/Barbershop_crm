@@ -1,0 +1,12 @@
+# Used when the hosting document root is the project folder itself (crm.testvane.org).
+# Everything is routed into public/; app code, config, backups and sessions are never served.
+Options -Indexes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>
+<FilesMatch "\.(php|sql|gz|hash|md|json|neon|xml|lock)$">
+    Require all denied
+</FilesMatch>
