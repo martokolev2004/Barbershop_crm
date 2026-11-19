@@ -18,6 +18,11 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
   <div class="row">
     <a class="btn btn-offer" href="#offer">Пусната оферта</a>
     <a class="btn" href="/businesses/<?= $id ?>/edit">Редактирай</a>
+    <?php if ($b['status'] === 'rejected'): ?>
+      <form method="post" action="/businesses/<?= $id ?>/restore" class="inline"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><button class="btn">Върни от Отхвърлени</button></form>
+    <?php else: ?>
+      <form method="post" action="/businesses/<?= $id ?>/reject" class="inline reject-form"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="reason" value=""><button class="btn btn-reject">Отхвърли</button></form>
+    <?php endif; ?>
   </div>
 </div>
 

@@ -21,6 +21,7 @@ final class Status
         'negotiation' => 'Преговори',
         'won' => 'Спечелен',
         'lost' => 'Загубен',
+        'rejected' => 'Отхвърлен',
         'archived' => 'Архив',
     ];
 
@@ -66,6 +67,9 @@ final class Status
         'failed' => 'Неуспешно',
         'cancelled' => 'Спряно',
     ];
+
+    /** Hidden from the normal list, Kanban and statistics. */
+    public const HIDDEN = ['archived', 'rejected'];
 
     public static function label(string $status): string
     {

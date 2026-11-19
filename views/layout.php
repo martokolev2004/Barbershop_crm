@@ -7,6 +7,7 @@ $nav = [
     '/offers' => 'Оферти',
     '/jobs' => 'Сканирания',
     '/duplicates' => 'Дубликати',
+    '/businesses?status=rejected' => 'Отхвърлени',
     '/settings' => 'Настройки',
 ];
 $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
@@ -19,8 +20,8 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 <meta name="robots" content="noindex, nofollow">
 <meta name="csrf" content="<?= e($csrf) ?>">
 <title><?= e($title ?? 'BarberLead') ?> · BarberLead</title>
-<link rel="stylesheet" href="/assets/app.css?v=3">
-<script src="/assets/app.js?v=3" defer></script>
+<link rel="stylesheet" href="/assets/app.css?v=4">
+<script src="/assets/app.js?v=4" defer></script>
 </head>
 <body>
 <?php if ($user === null): ?>
@@ -34,6 +35,7 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
       <?php foreach ($nav as $href => $label): ?>
         <a href="<?= e($href) ?>" class="<?= nav_active($path, $href) ? 'on' : '' ?>"><?= e($label) ?>
           <?php if ($href === '/offers' && $dueFollowUps > 0): ?><span class="pill" title="Напомняния за днес"><?= (int) $dueFollowUps ?></span><?php endif; ?>
+          <?php if ($href === '/businesses?status=rejected' && $rejectedCount > 0): ?><span class="n-muted"><?= (int) $rejectedCount ?></span><?php endif; ?>
           <?php if ($href === '/duplicates' && $openDuplicates > 0): ?><span class="pill" title="За преглед"><?= (int) $openDuplicates ?></span><?php endif; ?>
         </a>
       <?php endforeach; ?>

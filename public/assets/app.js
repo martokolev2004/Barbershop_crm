@@ -139,3 +139,15 @@
   }
   tick();
 })();
+
+/* "Отхвърли": ask for an optional reason, then submit. */
+document.addEventListener('submit', function (e) {
+  var f = e.target;
+  if (!f.classList || !f.classList.contains('reject-form') || f.getAttribute('data-asked')) return;
+  e.preventDefault();
+  var reason = window.prompt('Защо го отхвърляш? (по желание: има сайт, дамски салон, затворен…)', '');
+  if (reason === null) return; // cancelled
+  f.querySelector('input[name="reason"]').value = reason;
+  f.setAttribute('data-asked', '1');
+  f.submit();
+});

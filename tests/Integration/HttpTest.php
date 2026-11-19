@@ -192,4 +192,30 @@ final class HttpTest extends TestCase
         $this->assertStringNotContainsString('FIXTURE Lady Salon', $list);
         $this->assertStringContainsString('FIXTURE Lady Salon', $this->req('GET', '/businesses', [], ['rel' => 'all'])->body);
     }
+
+    public function testRejectHidesBusinessAndRestoreBringsItBack(): void
+    {
+        $this->login();
+        $this->db->exec("INSERT INTO businesses (id, name, name_normalized, relevance) VALUES (900, 'FIXTURE Reject Me', 'reject me', 'high')");
+        $r = $this->req('POST', '/businesses/900/reject', ['reason' => 'има си сайт', 'back' => '/businesses']);
+        $this->assertSame('/businesses', $r->headers['Location']);
+        $this->assertSame('rejected', $this->db->query('SELECT status FROM businesses WHERE id = 900')->fetchColumn());
+        $this->assertStringContainsString('е преместен в Отхвърлени', $this->req('GET', '/')->body, 'confirmation shown once');
+        $this->assertStringNotContainsString('FIXTURE Reject Me', $this->req('GET', '/businesses')->body, 'hidden from the normal list');
+        $rejected = $this->req('GET', '/businesses', [], ['status' => 'rejected'])->body;
+        $this->assertStringContainsString('FIXTURE Reject Me', $rejected);
+        $this->assertStringContainsString('Върни', $rejected);
+        $this->assertStringContainsString('Причина за отхвърляне: има си сайт', $this->req('GET', '/businesses/900')->body);
+
+        // a rescan finding the same place does not bring it back
+        $this->db->exec("INSERT INTO business_sources (business_id, source, source_id) VALUES (900, 'google', 'gREJ')");
+        (new \BarberLead\Discovery\Importer($this->db, new \BarberLead\Repositories\EventRepository($this->db)))
+            ->import(new \BarberLead\Discovery\Candidate('google', 'gREJ', 'FIXTURE Reject Me', phone: '0888 900 900'), null, 'test');
+        $this->assertSame('rejected', $this->db->query('SELECT status FROM businesses WHERE id = 900')->fetchColumn());
+
+        $this->req('POST', '/businesses/900/restore');
+        $this->req('GET', '/');
+        $this->assertSame('new', $this->db->query('SELECT status FROM businesses WHERE id = 900')->fetchColumn());
+        $this->assertStringContainsString('FIXTURE Reject Me', $this->req('GET', '/businesses')->body);
+    }
 }

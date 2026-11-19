@@ -197,6 +197,30 @@ final class BusinessController
         return Response::redirect($back !== '' ? $back : "/businesses/$id");
     }
 
+    public function reject(Request $req, int $id): Response
+    {
+        $b = $this->app->businesses->find($id);
+        if ($b === null) {
+            return $this->app->error(404, 'Няма такъв бизнес.');
+        }
+        $this->app->businesses->reject($id, mb_substr($req->str('reason'), 0, 300), $this->app->actor());
+        $this->app->session->flash('ok', '„' . $b['name'] . '“ е преместен в Отхвърлени.');
+        $back = $req->str('back');
+        return Response::redirect($back !== '' ? $back : "/businesses/$id");
+    }
+
+    public function restore(Request $req, int $id): Response
+    {
+        $b = $this->app->businesses->find($id);
+        if ($b === null) {
+            return $this->app->error(404, 'Няма такъв бизнес.');
+        }
+        $this->app->businesses->setStatus($id, 'new', $this->app->actor());
+        $this->app->session->flash('ok', '„' . $b['name'] . '“ е върнат в списъка.');
+        $back = $req->str('back');
+        return Response::redirect($back !== '' ? $back : "/businesses/$id");
+    }
+
     public function note(Request $req, int $id): Response
     {
         $note = $req->str('note');

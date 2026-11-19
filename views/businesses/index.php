@@ -17,7 +17,8 @@ use BarberLead\Status;
         <?php if ($area['geo_confidence'] === 'approx'): ?> · <span class="geo-approx">границите и принадлежността към район са приблизителни (ще се проверят с OpenStreetMap)</span><?php endif; ?>
       </p>
     <?php else: ?>
-      <h1>Бизнеси</h1>
+      <h1><?= $filters['status'] === 'rejected' ? 'Отхвърлени' : 'Бизнеси' ?></h1>
+      <?php if ($filters['status'] === 'rejected'): ?><p class="muted small">Тези бизнеси не се показват в списъка, Kanban и статистиките. Повторните сканирания не ги връщат.</p><?php endif; ?>
     <?php endif; ?>
   </div>
   <a class="btn btn-k" href="<?= e(url('/businesses/new', ['area' => $area['id'] ?? null])) ?>">+ Добави бизнес</a>
@@ -141,6 +142,7 @@ use BarberLead\Status;
     <th><?= sort_link($filters, $area, 'score', 'Оценка') ?></th>
     <th><?= sort_link($filters, $area, 'rating', 'Рейтинг') ?></th>
     <th><?= sort_link($filters, $area, 'updated', 'Обновен') ?></th>
+    <th></th>
   </tr></thead>
   <tbody>
   <?php foreach ($result['rows'] as $b): $score = $b['score']; ?>
@@ -153,6 +155,13 @@ use BarberLead\Status;
       <td data-label="Оценка"><?= $score !== null ? '<span class="score' . ((int) $score >= 70 ? ' hi' : '') . '">' . (int) $score . '</span>' : '<span class="muted">—</span>' ?></td>
       <td data-label="Рейтинг" class="nowrap"><?= $b['rating'] !== null ? e(number_format((float) $b['rating'], 1, ',', '')) . ' ★' . ($b['reviews_count'] !== null ? ' <span class="muted small">(' . (int) $b['reviews_count'] . ')</span>' : '') : '—' ?></td>
       <td data-label="Обновен" class="nowrap"><?= fmt_date($b['updated_at']) ?></td>
+      <td class="nowrap">
+        <?php if ($b['status'] === 'rejected'): ?>
+          <form method="post" action="/businesses/<?= (int) $b['id'] ?>/restore"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? '/businesses') ?>"><button class="btn btn-sm">Върни</button></form>
+        <?php else: ?>
+          <form method="post" action="/businesses/<?= (int) $b['id'] ?>/reject" class="reject-form"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? '/businesses') ?>"><input type="hidden" name="reason" value=""><button class="btn btn-sm btn-reject" title="Премести в Отхвърлени">Отхвърли</button></form>
+        <?php endif; ?>
+      </td>
     </tr>
   <?php endforeach; ?>
   </tbody>

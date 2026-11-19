@@ -71,6 +71,8 @@ final class App
         $r->post('/businesses/{id}', 'biz.update');
         $r->post('/businesses/{id}/status', 'biz.status');
         $r->post('/businesses/{id}/note', 'biz.note');
+        $r->post('/businesses/{id}/reject', 'biz.reject');
+        $r->post('/businesses/{id}/restore', 'biz.restore');
         $r->post('/businesses/{id}/demos', 'biz.demo');
         $r->post('/businesses/{id}/offer', 'offer.sent');
         $r->get('/offers', 'offer.index');
@@ -110,6 +112,8 @@ final class App
             'biz.update' => (new BusinessController($this))->update($req, $id),
             'biz.status' => (new BusinessController($this))->status($req, $id),
             'biz.note' => (new BusinessController($this))->note($req, $id),
+            'biz.reject' => (new BusinessController($this))->reject($req, $id),
+            'biz.restore' => (new BusinessController($this))->restore($req, $id),
             'biz.demo' => (new BusinessController($this))->addDemo($req, $id),
             'offer.sent' => (new OfferController($this))->markSent($req, $id),
             'offer.index' => (new OfferController($this))->index($req),
@@ -145,6 +149,7 @@ final class App
         $this->view->share('dueFollowUps', $loggedIn ? $this->offers->countDueFollowUps() : 0);
         $this->view->share('pendingMigrations', $loggedIn ? count((new Migrator($this->db, BL_ROOT . '/migrations'))->pending()) : 0);
         $this->view->share('openDuplicates', $loggedIn ? $this->countOpenDuplicates() : 0);
+        $this->view->share('rejectedCount', $loggedIn ? $this->businesses->countRejected() : 0);
 
         if (!$loggedIn && !in_array($req->path, self::PUBLIC_PATHS, true)) {
             if ($req->wantsJson) {

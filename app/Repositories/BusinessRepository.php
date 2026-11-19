@@ -84,7 +84,7 @@ final class BusinessRepository
             $where[] = 'b.status = ?';
             $params[] = $f['status'];
         } else {
-            $where[] = "b.status <> 'archived'";
+            $where[] = "b.status NOT IN ('archived','rejected')";
         }
         if (($f['relevance'] ?? '') === 'relevant') {
             $where[] = "b.relevance IN ('high','medium')";
@@ -171,6 +171,23 @@ final class BusinessRepository
         return true;
     }
 
+    /** Owner rejects a lead (not a fit). Kept for history; rescans never bring it back. */
+    public function reject(int $id, string $reason, string $actor): bool
+    {
+        if (!$this->setStatus($id, 'rejected', $actor)) {
+            return false;
+        }
+        if ($reason !== '') {
+            $this->events->add($id, 'note', 'Причина за отхвърляне: ' . $reason, $actor);
+        }
+        return true;
+    }
+
+    public function countRejected(): int
+    {
+        return (int) $this->db->query("SELECT COUNT(*) FROM businesses WHERE status = 'rejected'")->fetchColumn();
+    }
+
     public function addNote(int $id, string $note, string $actor): void
     {
         $this->events->add($id, 'note', $note, $actor);
@@ -206,7 +223,7 @@ final class BusinessRepository
      */
     public function stats(?array $areaIds = null): array
     {
-        $where = "status <> 'archived' AND relevance IN ('high','medium')";
+        $where = "status NOT IN ('archived','rejected') AND relevance IN ('high','medium')";
         if ($areaIds !== null) {
             $where .= $areaIds ? ' AND area_id IN (' . implode(',', array_map('intval', $areaIds)) . ')' : ' AND 0';
         }

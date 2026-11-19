@@ -76,6 +76,13 @@ function ext_link(?string $href, ?string $text = null): string
 
 function nav_active(string $path, string $href): bool
 {
+    $rejectedView = ($_GET['status'] ?? '') === 'rejected';
+    if (str_contains($href, 'status=rejected')) {
+        return $path === '/businesses' && $rejectedView;
+    }
+    if ($href === '/businesses' && $rejectedView) {
+        return false;
+    }
     return $href === '/' ? $path === '/' : str_starts_with($path, $href);
 }
 
