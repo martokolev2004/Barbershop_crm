@@ -4,17 +4,6 @@ use BarberLead\Status;
  * @var array<string,mixed> $filters @var ?array<string,mixed> $area @var list<array<string,mixed>> $areaPath
  * @var ?array<string,int> $areaStats @var array{rows:list<array<string,mixed>>,total:int,page:int,pages:int} $result
  */
-$q = function (array $over = []) use ($filters, $area) {
-    return url('/businesses', array_merge([
-        'area' => $area['id'] ?? null, 'q' => $filters['q'], 'status' => $filters['status'], 'web' => $filters['website'],
-        'sort' => $filters['sort'] !== 'updated' ? $filters['sort'] : null, 'dir' => $filters['dir'] !== 'desc' ? $filters['dir'] : null,
-    ], $over));
-};
-$sortLink = function (string $key, string $label) use ($filters, $q) {
-    $on = $filters['sort'] === $key;
-    $dir = $on && $filters['dir'] === 'desc' ? 'asc' : 'desc';
-    return '<a class="' . ($on ? 'on' : '') . '" href="' . e($q(['sort' => $key, 'dir' => $dir, 'page' => null])) . '">' . e($label) . ($on ? ($filters['dir'] === 'asc' ? ' ↑' : ' ↓') : '') . '</a>';
-};
 ?>
 <div class="page-head">
   <div>
@@ -37,10 +26,10 @@ $sortLink = function (string $key, string $label) use ($filters, $q) {
 <?php if ($areaStats !== null): ?>
 <div class="stats">
   <div class="stat"><strong><?= $areaStats['total'] ?></strong><span>открити бизнеса</span></div>
-  <a class="stat" href="<?= e($q(['status' => 'qualified', 'page' => null])) ?>"><strong><?= $areaStats['qualified'] ?></strong><span>квалифицирани</span></a>
-  <a class="stat" href="<?= e($q(['web' => 'none', 'page' => null])) ?>"><strong><?= $areaStats['no_website'] ?></strong><span>без открит сайт</span></a>
-  <a class="stat" href="<?= e($q(['web' => 'weak', 'page' => null])) ?>"><strong><?= $areaStats['weak_website'] ?></strong><span>слаб сайт</span></a>
-  <a class="stat" href="<?= e($q(['status' => 'offer_sent', 'page' => null])) ?>"><strong><?= $areaStats['offer_sent'] ?></strong><span>пуснати оферти</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'qualified', 'page' => null])) ?>"><strong><?= $areaStats['qualified'] ?></strong><span>квалифицирани</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'none', 'page' => null])) ?>"><strong><?= $areaStats['no_website'] ?></strong><span>без открит сайт</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'weak', 'page' => null])) ?>"><strong><?= $areaStats['weak_website'] ?></strong><span>слаб сайт</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'offer_sent', 'page' => null])) ?>"><strong><?= $areaStats['offer_sent'] ?></strong><span>пуснати оферти</span></a>
 </div>
 <div class="notice small" role="note">История на сканиранията: още няма. Бутонът „Сканирай квартала“ идва във Фаза 2 (OpenStreetMap + Google Places).</div>
 <p></p>
@@ -73,13 +62,13 @@ $sortLink = function (string $key, string $label) use ($filters, $q) {
 <div class="table-wrap">
 <table class="list responsive">
   <thead><tr>
-    <th><?= $sortLink('name', 'Бизнес') ?></th>
+    <th><?= sort_link($filters, $area, 'name', 'Бизнес') ?></th>
     <th>Квартал</th>
     <th>Сайт</th>
     <th>Статус</th>
-    <th><?= $sortLink('score', 'Оценка') ?></th>
-    <th><?= $sortLink('rating', 'Рейтинг') ?></th>
-    <th><?= $sortLink('updated', 'Обновен') ?></th>
+    <th><?= sort_link($filters, $area, 'score', 'Оценка') ?></th>
+    <th><?= sort_link($filters, $area, 'rating', 'Рейтинг') ?></th>
+    <th><?= sort_link($filters, $area, 'updated', 'Обновен') ?></th>
   </tr></thead>
   <tbody>
   <?php foreach ($result['rows'] as $b): $score = $b['score']; ?>
@@ -99,7 +88,7 @@ $sortLink = function (string $key, string $label) use ($filters, $q) {
 </div>
 <div class="pager">
   <span class="muted"><?= $result['total'] ?> общо · стр. <?= $result['page'] ?> от <?= $result['pages'] ?></span>
-  <?php if ($result['page'] > 1): ?><a class="btn btn-sm" href="<?= e($q(['page' => $result['page'] - 1])) ?>">← Назад</a><?php endif; ?>
-  <?php if ($result['page'] < $result['pages']): ?><a class="btn btn-sm" href="<?= e($q(['page' => $result['page'] + 1])) ?>">Напред →</a><?php endif; ?>
+  <?php if ($result['page'] > 1): ?><a class="btn btn-sm" href="<?= e(biz_list_url($filters, $area, ['page' => $result['page'] - 1])) ?>">← Назад</a><?php endif; ?>
+  <?php if ($result['page'] < $result['pages']): ?><a class="btn btn-sm" href="<?= e(biz_list_url($filters, $area, ['page' => $result['page'] + 1])) ?>">Напред →</a><?php endif; ?>
 </div>
 <?php endif; ?>

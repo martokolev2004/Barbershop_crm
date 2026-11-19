@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace BarberLead;
 
+use BarberLead\Support\Input;
 use BarberLead\Support\Text;
 
 /** Validates and normalises the business edit form. */
@@ -25,10 +26,9 @@ final class BusinessInput
     {
         $data = [];
         $errors = [];
-        $str = fn (string $k) => is_scalar($in[$k] ?? null) ? trim((string) $in[$k]) : '';
 
         foreach (self::TEXT as $field => $max) {
-            $v = $str($field);
+            $v = Input::str($in, $field);
             if (mb_strlen($v) > $max) {
                 $errors[$field] = "Най-много $max символа.";
             }
@@ -46,7 +46,7 @@ final class BusinessInput
         }
 
         foreach (self::URLS as $field) {
-            $raw = $str($field);
+            $raw = Input::str($in, $field);
             $url = Text::normalizeUrl($raw);
             if ($raw !== '' && $url === null) {
                 $errors[$field] = 'Невалиден адрес (трябва да започва с http:// или https://).';
@@ -55,20 +55,20 @@ final class BusinessInput
         }
         $data['website_domain'] = Text::domain($data['website_url']);
 
-        $area = $str('area_id');
+        $area = Input::str($in, 'area_id');
         $data['area_id'] = $area === '' ? null : (int) $area;
         if ($data['area_id'] !== null && !isset($validAreaIds[$data['area_id']])) {
             $errors['area_id'] = 'Невалиден квартал.';
         }
 
-        $ws = $str('website_status') ?: 'unknown';
+        $ws = Input::str($in, 'website_status') ?: 'unknown';
         if (!isset(Status::WEBSITE[$ws])) {
             $errors['website_status'] = 'Невалидна стойност.';
         }
         $data['website_status'] = $ws;
 
         foreach (['lat' => [-90, 90], 'lng' => [-180, 180]] as $f => [$min, $max]) {
-            $v = str_replace(',', '.', $str($f));
+            $v = str_replace(',', '.', Input::str($in, $f));
             if ($v === '') {
                 $data[$f] = null;
             } elseif (!is_numeric($v) || (float) $v < $min || (float) $v > $max) {
@@ -79,17 +79,17 @@ final class BusinessInput
             }
         }
 
-        $rating = str_replace(',', '.', $str('rating'));
+        $rating = str_replace(',', '.', Input::str($in, 'rating'));
         $data['rating'] = $rating === '' ? null : (float) $rating;
         if ($rating !== '' && (!is_numeric($rating) || (float) $rating < 0 || (float) $rating > 5)) {
             $errors['rating'] = 'Рейтингът е между 0 и 5.';
         }
-        $reviews = $str('reviews_count');
+        $reviews = Input::str($in, 'reviews_count');
         $data['reviews_count'] = $reviews === '' ? null : (int) $reviews;
         if ($reviews !== '' && !ctype_digit($reviews)) {
             $errors['reviews_count'] = 'Цяло число.';
         }
-        $override = $str('lead_score_override');
+        $override = Input::str($in, 'lead_score_override');
         $data['lead_score_override'] = $override === '' ? null : (int) $override;
         if ($override !== '' && (!ctype_digit($override) || (int) $override > 100)) {
             $errors['lead_score_override'] = 'Число от 0 до 100.';

@@ -4,31 +4,32 @@ declare(strict_types=1);
 
 namespace BarberLead\Http;
 
+/** Maps method + path to a route name. Dispatch is an explicit match in App (no dynamic calls). */
 final class Router
 {
-    /** @var list<array{string,string,callable}> */
+    /** @var list<array{string,string,string}> */
     private array $routes = [];
 
-    public function get(string $pattern, callable $handler): void
+    public function get(string $pattern, string $name): void
     {
-        $this->routes[] = ['GET', $pattern, $handler];
+        $this->routes[] = ['GET', $pattern, $name];
     }
 
-    public function post(string $pattern, callable $handler): void
+    public function post(string $pattern, string $name): void
     {
-        $this->routes[] = ['POST', $pattern, $handler];
+        $this->routes[] = ['POST', $pattern, $name];
     }
 
-    /** @return array{callable, array<string,string>}|null  null = 404; method mismatch handled as 404 too */
+    /** @return array{string, int}|null [route name, numeric id (0 when the route has none)] */
     public function match(string $method, string $path): ?array
     {
-        foreach ($this->routes as [$m, $pattern, $handler]) {
+        foreach ($this->routes as [$m, $pattern, $name]) {
             if ($m !== $method) {
                 continue;
             }
-            $regex = '#^' . preg_replace('#\{(\w+)\}#', '(?P<$1>\d+)', $pattern) . '$#';
+            $regex = '#^' . str_replace('{id}', '(\d+)', $pattern) . '$#';
             if (preg_match($regex, $path, $mm)) {
-                return [$handler, array_filter($mm, 'is_string', ARRAY_FILTER_USE_KEY)];
+                return [$name, isset($mm[1]) ? (int) $mm[1] : 0];
             }
         }
         return null;

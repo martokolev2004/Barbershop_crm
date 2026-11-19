@@ -1,0 +1,14 @@
+<?php
+// Default outreach template and settings.
+// Data-only migration: SQL strings or ['task', name] steps run by BarberLead\Migrator.
+return [
+    'up' => [
+        'INSERT IGNORE INTO settings (name, value) VALUES
+(\'outreach_template\', \'Здравейте! Казвам се {my_name} и правя сайтове. Не знам дали имате сайт, но ако нямате, Ви направих демо с онлайн записване при барбер:\\n{demo_url}\\n\\nКлиентът си избира барбер, ден и свободен час, а Вие виждате всички записи на едно място. Най-добре го отворете от телефона. Снимките са временни и ще ги сменим с Вашите.\\n\\nАко Ви харесва, мога да го пусна на Ваш домейн за няколко дни, а всичко може да се промени по Ваш вкус. Ако не Ви интересува, няма проблем, просто ще го изтрия.\\n\\nАко проявявате интерес, пишете ми или ми дайте номер, за да се чуем и да уточним подробностите.\\n\\nПоздрави,\\n{my_name}\'),
+(\'my_name\', \'Мартин\'),
+(\'follow_up_days\', \'5\')',
+    ],
+    'down' => [
+        'DELETE FROM settings WHERE name IN (\'outreach_template\', \'my_name\', \'follow_up_days\')',
+    ],
+];

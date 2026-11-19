@@ -10,7 +10,7 @@ use BarberLead\Http\Session;
 
 /**
  * One-time web installer. Active only while config/config.php does NOT exist and a setup token
- * hash (config/setup_token.hash) was deployed. The owner types the database password and his
+ * hash (config/setup_token.php) was deployed. The owner types the database password and his
  * admin password directly into this form, so no secret ever passes through chat or Git.
  * On success it writes config/config.php (0600), runs migrations, creates the owner account
  * and deletes the token hash, which disables the installer permanently.
@@ -23,7 +23,7 @@ final class Installer
     public function __construct(private string $root, private Session $session)
     {
         $this->configFile = $root . '/config/config.php';
-        $this->tokenFile = $root . '/config/setup_token.hash';
+        $this->tokenFile = $root . '/config/setup_token.php';
     }
 
     public function handle(Request $req): Response
@@ -67,7 +67,8 @@ final class Installer
     private function validate(array $in): array
     {
         $errors = [];
-        $hash = trim((string) file_get_contents($this->tokenFile));
+        $hash = require $this->tokenFile;
+        $hash = is_string($hash) ? $hash : '';
         if (!password_verify($in['token'], $hash)) {
             $errors['token'] = 'Грешен код за инсталация.';
         }
@@ -118,8 +119,6 @@ final class Installer
     /** @param array<string,string> $v @param array<string,string> $errors */
     private function form(array $v, array $errors): string
     {
-        $err = fn (string $k) => isset($errors[$k]) ? '<span class="field-err">' . e($errors[$k]) . '</span>' : '';
-        $val = fn (string $k, string $d = '') => e($v[$k] ?? $d);
         $base = 'https://' . e($_SERVER['HTTP_HOST'] ?? 'crm.testvane.org');
         return '<h2>Първоначална настройка</h2>
 <p class="muted">Попълва се веднъж. Паролите отиват само в config.php на сървъра.</p>
@@ -127,17 +126,17 @@ final class Installer
 <form method="post" class="form">
 <input type="hidden" name="_csrf" value="' . e($this->session->csrfToken()) . '">
 <input type="hidden" name="base_url" value="' . $base . '">
-<label>Код за инсталация<input name="token" required autocomplete="off" value="' . $val('token') . '">' . $err('token') . '</label>
+<label>Код за инсталация<input name="token" required autocomplete="off" value="' . form_value($v, 'token') . '">' . form_error($errors, 'token') . '</label>
 <fieldset><legend>База данни (от cPanel → MySQL Databases)</legend>
-<label>Сървър<input name="db_host" value="' . $val('db_host', 'localhost') . '"></label>
-<label>Име на базата<input name="db_name" required value="' . $val('db_name', 'martest_barberlead') . '">' . $err('db_name') . '</label>
-<label>Потребител<input name="db_user" required value="' . $val('db_user', 'martest_barberlead') . '">' . $err('db_user') . '</label>
+<label>Сървър<input name="db_host" value="' . form_value($v, 'db_host', 'localhost') . '"></label>
+<label>Име на базата<input name="db_name" required value="' . form_value($v, 'db_name', 'martest_barberlead') . '">' . form_error($errors, 'db_name') . '</label>
+<label>Потребител<input name="db_user" required value="' . form_value($v, 'db_user', 'martest_barberlead') . '">' . form_error($errors, 'db_user') . '</label>
 <label>Парола на базата<input name="db_pass" type="password" autocomplete="off"></label>
 </fieldset>
 <fieldset><legend>Твоят вход в CRM-а</legend>
-<label>Потребителско име<input name="username" required value="' . $val('username', 'martin') . '" autocapitalize="off">' . $err('username') . '</label>
-<label>Парола (поне ' . Auth::MIN_PASSWORD_LENGTH . ' символа)<input name="password" type="password" required autocomplete="new-password">' . $err('password') . '</label>
-<label>Паролата още веднъж<input name="password2" type="password" required autocomplete="new-password">' . $err('password2') . '</label>
+<label>Потребителско име<input name="username" required value="' . form_value($v, 'username', 'martin') . '" autocapitalize="off">' . form_error($errors, 'username') . '</label>
+<label>Парола (поне ' . Auth::MIN_PASSWORD_LENGTH . ' символа)<input name="password" type="password" required autocomplete="new-password">' . form_error($errors, 'password') . '</label>
+<label>Паролата още веднъж<input name="password2" type="password" required autocomplete="new-password">' . form_error($errors, 'password2') . '</label>
 </fieldset>
 <button class="btn btn-k">Настрой</button>
 </form>';

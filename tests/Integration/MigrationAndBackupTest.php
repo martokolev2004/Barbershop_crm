@@ -47,9 +47,8 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $before = (int) $db->query('SELECT COUNT(*) FROM areas')->fetchColumn();
-        foreach (['0002_seed_areas', '0004_import_existing_demos'] as $v) {
-            (require BL_ROOT . "/migrations/$v.up.php")($db);
-        }
+        \BarberLead\Seeds::seedAreas($db);
+        \BarberLead\Seeds::importPrime($db);
         $this->assertSame($before, (int) $db->query('SELECT COUNT(*) FROM areas')->fetchColumn());
         $this->assertSame(1, (int) $db->query('SELECT COUNT(*) FROM businesses')->fetchColumn());
     }

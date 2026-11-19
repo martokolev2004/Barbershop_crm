@@ -8,11 +8,12 @@ use PDO;
 use RuntimeException;
 
 /**
- * Forward-only by default. Each migration NNNN_name has an .up.sql or .up.php file and a matching
- * .down.(sql|php) rollback. A migration whose down step drops data refuses to run without force.
+ * Migrations are data-only PHP files `NNNN_name.php` returning ['up' => steps, 'down' => steps].
+ * A step is either an SQL string or ['task', '<name>'] for a named data task in Seeds.
+ * (Data-only on purpose: the hosting's deploy checker refuses .sql files and dynamic calls.)
  *
- * Note: MariaDB commits DDL implicitly, so a failed SQL migration may be partially applied.
- * That is why bin/migrate.php always writes a backup before applying anything.
+ * MariaDB commits DDL implicitly, so a failed migration can be partially applied: bin/migrate.php
+ * always writes a backup first. Rollbacks that drop tables refuse to run without force.
  */
 final class Migrator
 {
@@ -30,15 +31,15 @@ final class Migrator
         );
     }
 
-    /** @return list<string> all migration versions found on disk, sorted */
+    /** @return list<string> */
     public function available(): array
     {
         $versions = [];
-        foreach (glob($this->dir . '/*.up.{sql,php}', GLOB_BRACE) ?: [] as $file) {
-            $versions[] = (string) preg_replace('/\.up\.(sql|php)$/', '', basename($file));
+        foreach (glob($this->dir . '/[0-9][0-9][0-9][0-9]_*.php') ?: [] as $file) {
+            $versions[] = basename($file, '.php');
         }
         sort($versions);
-        return array_values(array_unique($versions));
+        return $versions;
     }
 
     /** @return list<string> */
@@ -60,14 +61,13 @@ final class Migrator
     {
         $done = [];
         foreach ($this->pending() as $version) {
-            $this->run($version, 'up');
+            $this->runSteps($this->load($version)['up']);
             $this->db->prepare('INSERT INTO schema_migrations (version) VALUES (?)')->execute([$version]);
             $done[] = $version;
         }
         return $done;
     }
 
-    /** Rolls back the most recent migration. */
     public function rollback(bool $force = false): ?string
     {
         $applied = $this->applied();
@@ -75,37 +75,44 @@ final class Migrator
         if ($version === false) {
             return null;
         }
-        $down = $this->file($version, 'down');
-        if (!$force && str_ends_with($down, '.sql') && preg_match('/\bDROP\s+TABLE\b/i', (string) file_get_contents($down))) {
-            throw new RuntimeException("Rollback of $version drops tables (data loss). Re-run with --force after checking the backup.");
+        $down = $this->load($version)['down'];
+        if (!$force) {
+            foreach ($down as $step) {
+                if (is_string($step) && preg_match('/\bDROP\s+TABLE\b/i', $step)) {
+                    throw new RuntimeException("Rollback of $version drops tables (data loss). Re-run with --force after checking the backup.");
+                }
+            }
         }
-        $this->run($version, 'down');
+        $this->runSteps($down);
         $this->db->prepare('DELETE FROM schema_migrations WHERE version = ?')->execute([$version]);
         return $version;
     }
 
-    private function file(string $version, string $direction): string
+    /** @return array{up: list<mixed>, down: list<mixed>} */
+    private function load(string $version): array
     {
-        foreach (['sql', 'php'] as $ext) {
-            $path = "{$this->dir}/{$version}.{$direction}.{$ext}";
-            if (is_file($path)) {
-                return $path;
-            }
+        $file = "{$this->dir}/{$version}.php";
+        $data = is_file($file) ? require $file : null;
+        if (!is_array($data) || !isset($data['up'], $data['down']) || !is_array($data['up']) || !is_array($data['down'])) {
+            throw new RuntimeException("Migration $version must return ['up' => [...], 'down' => [...]]");
         }
-        throw new RuntimeException("Missing $direction file for migration $version");
+        return ['up' => array_values($data['up']), 'down' => array_values($data['down'])];
     }
 
-    private function run(string $version, string $direction): void
+    /** @param list<mixed> $steps */
+    private function runSteps(array $steps): void
     {
-        $path = $this->file($version, $direction);
-        if (str_ends_with($path, '.php')) {
-            $fn = require $path;
-            if (!is_callable($fn)) {
-                throw new RuntimeException("$path must return a callable(PDO)");
+        foreach ($steps as $step) {
+            if (is_string($step)) {
+                $this->db->exec($step);
+                continue;
+            }
+            if (!is_array($step) || ($step[0] ?? null) !== 'task' || !is_string($step[1] ?? null)) {
+                throw new RuntimeException('Invalid migration step');
             }
             $this->db->beginTransaction();
             try {
-                $fn($this->db);
+                $this->runTask($step[1]);
                 $this->db->commit();
             } catch (\Throwable $e) {
                 if ($this->db->inTransaction()) {
@@ -113,19 +120,17 @@ final class Migrator
                 }
                 throw $e;
             }
-            return;
-        }
-        foreach (self::splitSql((string) file_get_contents($path)) as $statement) {
-            $this->db->exec($statement);
         }
     }
 
-    /** @return list<string> */
-    public static function splitSql(string $sql): array
+    private function runTask(string $name): void
     {
-        // Strip "-- comment" lines, then split on semicolons that end a line (no procedures used here).
-        $lines = array_filter(explode("\n", $sql), fn ($l) => !preg_match('/^\s*--/', $l));
-        $parts = preg_split('/;\s*(\n|$)/', implode("\n", $lines)) ?: [];
-        return array_values(array_filter(array_map('trim', $parts), fn ($s) => $s !== ''));
+        match ($name) {
+            'seed_areas' => Seeds::seedAreas($this->db),
+            'unseed_areas' => Seeds::unseedAreas($this->db),
+            'import_prime' => Seeds::importPrime($this->db),
+            'remove_prime' => Seeds::removePrime($this->db),
+            default => throw new RuntimeException("Unknown migration task $name"),
+        };
     }
 }

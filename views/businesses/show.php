@@ -7,11 +7,6 @@ use BarberLead\Status;
  */
 $id = (int) $b['id'];
 $score = $b['lead_score_override'] ?? $b['lead_score'];
-$link = function (?string $href, ?string $text = null) {
-    $safe = safe_href($href);
-    return $safe ? '<a href="' . e($safe) . '" target="_blank" rel="noopener noreferrer">' . e($text ?? $safe) . '</a>' : ($href ? e($href) : '<span class="muted">—</span>');
-};
-$val = fn ($v) => $v !== null && $v !== '' ? e($v) : '<span class="muted">неизвестно</span>';
 ?>
 <div class="page-head">
   <div>
@@ -38,16 +33,16 @@ $val = fn ($v) => $v !== null && $v !== '' ? e($v) : '<span class="muted">неи
       <h2>Данни</h2>
       <dl class="kv">
         <dt>Квартал</dt><dd><?= e($areaLabel) ?></dd>
-        <dt>Адрес</dt><dd><?= $val($b['address']) ?></dd>
-        <dt>Телефон</dt><dd><?= $b['phone'] ? '<a href="tel:' . e($b['phone_normalized'] ?? $b['phone']) . '">' . e($b['phone']) . '</a>' : $val(null) ?></dd>
-        <dt>Имейл</dt><dd><?= $b['email'] ? '<a href="mailto:' . e($b['email']) . '">' . e($b['email']) . '</a>' : $val(null) ?></dd>
-        <dt>Сайт</dt><dd><?= $b['website_url'] ? $link($b['website_url']) : $val(null) ?></dd>
-        <dt>Instagram</dt><dd><?= $b['instagram_url'] ? $link($b['instagram_url']) : '<a href="' . e('https://www.google.com/search?q=' . rawurlencode($b['name'] . ' instagram')) . '" target="_blank" rel="noopener noreferrer">търси в Google →</a>' ?></dd>
-        <dt>Facebook</dt><dd><?= $b['facebook_url'] ? $link($b['facebook_url']) : $val(null) ?></dd>
-        <dt>TikTok</dt><dd><?= $b['tiktok_url'] ? $link($b['tiktok_url']) : $val(null) ?></dd>
-        <dt>Работно време</dt><dd><?= $val($b['working_hours']) ?></dd>
-        <dt>Записване</dt><dd><?= $val($b['booking_method']) ?></dd>
-        <dt>Рейтинг</dt><dd><?= $b['rating'] !== null ? e(number_format((float) $b['rating'], 1, ',', '')) . ' ★' . ($b['reviews_count'] !== null ? ' (' . (int) $b['reviews_count'] . ' отзива)' : '') : $val(null) ?></dd>
+        <dt>Адрес</dt><dd><?= unknown_or($b['address']) ?></dd>
+        <dt>Телефон</dt><dd><?= $b['phone'] ? '<a href="tel:' . e($b['phone_normalized'] ?? $b['phone']) . '">' . e($b['phone']) . '</a>' : unknown_or(null) ?></dd>
+        <dt>Имейл</dt><dd><?= $b['email'] ? '<a href="mailto:' . e($b['email']) . '">' . e($b['email']) . '</a>' : unknown_or(null) ?></dd>
+        <dt>Сайт</dt><dd><?= $b['website_url'] ? ext_link($b['website_url']) : unknown_or(null) ?></dd>
+        <dt>Instagram</dt><dd><?= $b['instagram_url'] ? ext_link($b['instagram_url']) : '<a href="' . e('https://www.google.com/search?q=' . rawurlencode($b['name'] . ' instagram')) . '" target="_blank" rel="noopener noreferrer">търси в Google →</a>' ?></dd>
+        <dt>Facebook</dt><dd><?= $b['facebook_url'] ? ext_link($b['facebook_url']) : unknown_or(null) ?></dd>
+        <dt>TikTok</dt><dd><?= $b['tiktok_url'] ? ext_link($b['tiktok_url']) : unknown_or(null) ?></dd>
+        <dt>Работно време</dt><dd><?= unknown_or($b['working_hours']) ?></dd>
+        <dt>Записване</dt><dd><?= unknown_or($b['booking_method']) ?></dd>
+        <dt>Рейтинг</dt><dd><?= $b['rating'] !== null ? e(number_format((float) $b['rating'], 1, ',', '')) . ' ★' . ($b['reviews_count'] !== null ? ' (' . (int) $b['reviews_count'] . ' отзива)' : '') : unknown_or(null) ?></dd>
         <?php if ($b['lat'] !== null && $b['lng'] !== null): ?>
         <dt>Карта</dt><dd><a href="<?= e('https://www.openstreetmap.org/?mlat=' . $b['lat'] . '&mlon=' . $b['lng'] . '#map=18/' . $b['lat'] . '/' . $b['lng']) ?>" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> · <a href="<?= e('https://www.google.com/maps/search/?api=1&query=' . $b['lat'] . ',' . $b['lng']) ?>" target="_blank" rel="noopener noreferrer">Google Maps</a></dd>
         <?php endif; ?>
@@ -118,7 +113,7 @@ $val = fn ($v) => $v !== null && $v !== '' ? e($v) : '<span class="muted">неи
           <?php foreach ($offers as $o): ?>
             <li><time><?= fmt_date($o['sent_at'], true) ?></time>
               <div><?= e(Status::CHANNELS[$o['channel']] ?? $o['channel']) ?><?= $o['amount_eur'] !== null ? ' · ' . e(number_format((float) $o['amount_eur'], 2, ',', ' ')) . ' €' : '' ?>
-                <?php if ($o['demo_url']): ?><br><?= $link($o['demo_url']) ?><?php endif; ?>
+                <?php if ($o['demo_url']): ?><br><?= ext_link($o['demo_url']) ?><?php endif; ?>
                 <?php if ($o['note']): ?><br><span class="small t-note"><?= e($o['note']) ?></span><?php endif; ?>
                 <?php if ($o['follow_up_at']): ?><br><span class="small muted">Напомняне: <?= fmt_date($o['follow_up_at']) ?><?= $o['follow_up_done_at'] ? ' ✓ направено' : '' ?></span><?php endif; ?>
               </div></li>
@@ -138,7 +133,7 @@ $val = fn ($v) => $v !== null && $v !== '' ? e($v) : '<span class="muted">неи
       <?php if (!$demos): ?><p class="muted small">Още няма демо.</p><?php endif; ?>
       <ul class="timeline">
         <?php foreach ($demos as $d): ?>
-          <li><time><?= fmt_date($d['created_at']) ?></time><div><?= $link($d['url']) ?><br><span class="small muted">v<?= (int) $d['version'] ?> · <?= e(DemoRepository::STATUSES[$d['status']] ?? $d['status']) ?></span>
+          <li><time><?= fmt_date($d['created_at']) ?></time><div><?= ext_link($d['url']) ?><br><span class="small muted">v<?= (int) $d['version'] ?> · <?= e(DemoRepository::STATUSES[$d['status']] ?? $d['status']) ?></span>
             <?php if ($d['notes']): ?><br><span class="small"><?= e($d['notes']) ?></span><?php endif; ?></div></li>
         <?php endforeach; ?>
       </ul>

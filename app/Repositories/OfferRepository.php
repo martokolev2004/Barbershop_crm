@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BarberLead\Repositories;
 
 use BarberLead\Status;
+use BarberLead\Support\Input;
 use BarberLead\Support\Text;
 use PDO;
 
@@ -25,13 +26,12 @@ final class OfferRepository
     public function markSent(int $businessId, array $in, string $actor, int $defaultFollowUpDays = 5): array
     {
         $errors = [];
-        $s = fn (string $k) => is_scalar($in[$k] ?? null) ? trim((string) $in[$k]) : '';
 
-        $channel = $s('channel');
+        $channel = Input::str($in, 'channel');
         if (!isset(Status::CHANNELS[$channel])) {
             $errors['channel'] = 'Избери канал.';
         }
-        $amountRaw = str_replace([',', ' '], ['.', ''], $s('amount_eur'));
+        $amountRaw = str_replace([',', ' '], ['.', ''], Input::str($in, 'amount_eur'));
         $amount = null;
         if ($amountRaw !== '') {
             if (!is_numeric($amountRaw) || (float) $amountRaw < 0 || (float) $amountRaw > 1000000) {
@@ -40,15 +40,15 @@ final class OfferRepository
                 $amount = round((float) $amountRaw, 2);
             }
         }
-        $demoUrl = Text::normalizeUrl($s('demo_url'));
-        if ($s('demo_url') !== '' && $demoUrl === null) {
+        $demoUrl = Text::normalizeUrl(Input::str($in, 'demo_url'));
+        if (Input::str($in, 'demo_url') !== '' && $demoUrl === null) {
             $errors['demo_url'] = 'Невалиден адрес.';
         }
-        $note = $s('note');
+        $note = Input::str($in, 'note');
         if (mb_strlen($note) > 5000) {
             $errors['note'] = 'Твърде дълга бележка.';
         }
-        $followRaw = $s('follow_up_days');
+        $followRaw = Input::str($in, 'follow_up_days');
         $followDays = $followRaw === '' ? $defaultFollowUpDays : (int) $followRaw;
         if ($followRaw !== '' && (!ctype_digit($followRaw) || $followDays > 365)) {
             $errors['follow_up_days'] = 'Брой дни между 0 и 365.';

@@ -34,10 +34,10 @@ composer check        # php -l, PHPStan, PHPUnit
 
 ## Deploying to cPanel (crm.testvane.org)
 
-1. cPanel: create the subdomain `crm.testvane.org` with document root `crm.testvane.org/public`.
+1. cPanel: create the subdomain `crm.testvane.org` (document root = the project folder; the root `.htaccess` routes everything into `public/`).
 2. cPanel → MySQL Databases: create database + user (e.g. `martest_barberlead`), grant ALL on that database.
-3. Generate the installer code locally: `php bin/create-setup-token.php` (prints the code, writes `config/setup_token.hash`).
-4. Upload the project **without** `config/config.php`, `storage/backups/*`, `tests/`, `.git/`, but **with** `config/setup_token.hash`.
+3. Generate the installer code locally: `php bin/create-setup-token.php` (prints the code, writes `config/setup_token.php`).
+4. Upload the project **without** `config/config.php`, `storage/backups/*`, `tests/`, `.git/`, but **with** `config/setup_token.php`.
 5. Open https://crm.testvane.org, enter the installer code, the DB password and your CRM password.
    The installer writes `config/config.php`, runs the migrations, creates your user and disables itself.
 

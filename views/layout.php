@@ -7,9 +7,6 @@ $nav = [
     '/offers' => 'Оферти',
     '/settings' => 'Настройки',
 ];
-$active = function (string $href) use ($path): bool {
-    return $href === '/' ? $path === '/' : str_starts_with($path, $href);
-};
 $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 ?>
 <!DOCTYPE html>
@@ -33,7 +30,7 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
     <a class="brand" href="/"><b>BARBER</b>LEAD<small>КЛИЕНТИ · ДЕМА · ОФЕРТИ</small></a>
     <nav class="nav">
       <?php foreach ($nav as $href => $label): ?>
-        <a href="<?= e($href) ?>" class="<?= $active($href) ? 'on' : '' ?>"><?= e($label) ?>
+        <a href="<?= e($href) ?>" class="<?= nav_active($path, $href) ? 'on' : '' ?>"><?= e($label) ?>
           <?php if ($href === '/offers' && $dueFollowUps > 0): ?><span class="pill" title="Напомняния за днес"><?= (int) $dueFollowUps ?></span><?php endif; ?>
         </a>
       <?php endforeach; ?>

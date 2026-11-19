@@ -57,40 +57,56 @@ final class App
     private function routes(): Router
     {
         $r = new Router();
-        $auth = new AuthController($this);
-        $dash = new DashboardController($this);
-        $biz = new BusinessController($this);
-        $offer = new OfferController($this);
-        $kanban = new KanbanController($this);
-        $settings = new SettingsController($this);
-
-        $r->get('/login', [$auth, 'form']);
-        $r->post('/login', [$auth, 'login']);
-        $r->post('/logout', [$auth, 'logout']);
-
-        $r->get('/', [$dash, 'index']);
-
-        $r->get('/businesses', [$biz, 'index']);
-        $r->get('/businesses/new', [$biz, 'createForm']);
-        $r->post('/businesses', [$biz, 'create']);
-        $r->get('/businesses/{id}', [$biz, 'show']);
-        $r->get('/businesses/{id}/edit', [$biz, 'editForm']);
-        $r->post('/businesses/{id}', [$biz, 'update']);
-        $r->post('/businesses/{id}/status', [$biz, 'status']);
-        $r->post('/businesses/{id}/note', [$biz, 'note']);
-        $r->post('/businesses/{id}/demos', [$biz, 'addDemo']);
-        $r->post('/businesses/{id}/offer', [$offer, 'markSent']);
-
-        $r->get('/offers', [$offer, 'index']);
-        $r->post('/offers/{id}/follow-up-done', [$offer, 'followUpDone']);
-
-        $r->get('/kanban', [$kanban, 'index']);
-
-        $r->get('/settings', [$settings, 'index']);
-        $r->post('/settings', [$settings, 'save']);
-        $r->post('/settings/password', [$settings, 'password']);
-        $r->post('/settings/backup', [$settings, 'backup']);
+        $r->get('/login', 'login.form');
+        $r->post('/login', 'login');
+        $r->post('/logout', 'logout');
+        $r->get('/', 'dashboard');
+        $r->get('/businesses', 'biz.index');
+        $r->get('/businesses/new', 'biz.new');
+        $r->post('/businesses', 'biz.create');
+        $r->get('/businesses/{id}', 'biz.show');
+        $r->get('/businesses/{id}/edit', 'biz.edit');
+        $r->post('/businesses/{id}', 'biz.update');
+        $r->post('/businesses/{id}/status', 'biz.status');
+        $r->post('/businesses/{id}/note', 'biz.note');
+        $r->post('/businesses/{id}/demos', 'biz.demo');
+        $r->post('/businesses/{id}/offer', 'offer.sent');
+        $r->get('/offers', 'offer.index');
+        $r->post('/offers/{id}/follow-up-done', 'offer.followup');
+        $r->get('/kanban', 'kanban');
+        $r->get('/settings', 'settings');
+        $r->post('/settings', 'settings.save');
+        $r->post('/settings/password', 'settings.password');
+        $r->post('/settings/backup', 'settings.backup');
         return $r;
+    }
+
+    private function dispatch(string $route, Request $req, int $id): Response
+    {
+        return match ($route) {
+            'login.form' => (new AuthController($this))->form($req),
+            'login' => (new AuthController($this))->login($req),
+            'logout' => (new AuthController($this))->logout($req),
+            'dashboard' => (new DashboardController($this))->index($req),
+            'biz.index' => (new BusinessController($this))->index($req),
+            'biz.new' => (new BusinessController($this))->createForm($req),
+            'biz.create' => (new BusinessController($this))->create($req),
+            'biz.show' => (new BusinessController($this))->show($req, $id),
+            'biz.edit' => (new BusinessController($this))->editForm($req, $id),
+            'biz.update' => (new BusinessController($this))->update($req, $id),
+            'biz.status' => (new BusinessController($this))->status($req, $id),
+            'biz.note' => (new BusinessController($this))->note($req, $id),
+            'biz.demo' => (new BusinessController($this))->addDemo($req, $id),
+            'offer.sent' => (new OfferController($this))->markSent($req, $id),
+            'offer.index' => (new OfferController($this))->index($req),
+            'offer.followup' => (new OfferController($this))->followUpDone($req, $id),
+            'kanban' => (new KanbanController($this))->index($req),
+            'settings' => (new SettingsController($this))->index($req),
+            'settings.save' => (new SettingsController($this))->save($req),
+            'settings.password' => (new SettingsController($this))->password($req),
+            'settings.backup' => (new SettingsController($this))->backup($req),
+            default => $this->error(404, 'Няма такава страница.'),
+        };
     }
 
     public function handle(Request $req): Response
@@ -119,8 +135,7 @@ final class App
         if ($match === null) {
             return $this->error(404, 'Няма такава страница.');
         }
-        [$handler, $params] = $match;
-        return $handler($req, ...array_map('intval', array_values($params)));
+        return $this->dispatch($match[0], $req, $match[1]);
     }
 
     public function actor(): string

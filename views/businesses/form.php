@@ -1,8 +1,6 @@
 <?php
 use BarberLead\Status;
 /** @var array<string,mixed> $v @var array<string,string> $errors @var ?int $id @var array<int,string> $areaOptions @var list<array<string,mixed>> $duplicates @var string $title */
-$f = fn (string $k) => e(is_scalar($v[$k] ?? null) ? (string) $v[$k] : '');
-$err = fn (string $k) => isset($errors[$k]) ? '<span class="field-err">' . e($errors[$k]) . '</span>' : '';
 $action = $id ? "/businesses/$id" : '/businesses';
 ?>
 <div class="page-head">
@@ -20,44 +18,44 @@ $action = $id ? "/businesses/$id" : '/businesses';
   <?php if ($duplicates): ?><input type="hidden" name="confirm_duplicate" value="1"><?php endif; ?>
   <fieldset><legend>Основно</legend>
     <div class="grid2">
-      <label>Име *<input name="name" required maxlength="200" value="<?= $f('name') ?>"><?= $err('name') ?></label>
-      <label>Марка / верига<input name="brand" maxlength="200" value="<?= $f('brand') ?>"><?= $err('brand') ?></label>
+      <label>Име *<input name="name" required maxlength="200" value="<?= form_value($v, 'name') ?>"><?= form_error($errors, 'name') ?></label>
+      <label>Марка / верига<input name="brand" maxlength="200" value="<?= form_value($v, 'brand') ?>"><?= form_error($errors, 'brand') ?></label>
       <label>Квартал<select name="area_id">
         <option value="">— неизвестен —</option>
         <?php foreach ($areaOptions as $aid => $label): ?><option value="<?= (int) $aid ?>"<?= (string) ($v['area_id'] ?? '') === (string) $aid ? ' selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?>
-      </select><?= $err('area_id') ?></label>
-      <label>Адрес<input name="address" maxlength="255" value="<?= $f('address') ?>"><?= $err('address') ?></label>
-      <label>Ширина (lat)<input name="lat" inputmode="decimal" value="<?= $f('lat') ?>" placeholder="42.68…"><?= $err('lat') ?></label>
-      <label>Дължина (lng)<input name="lng" inputmode="decimal" value="<?= $f('lng') ?>" placeholder="23.32…"><?= $err('lng') ?></label>
+      </select><?= form_error($errors, 'area_id') ?></label>
+      <label>Адрес<input name="address" maxlength="255" value="<?= form_value($v, 'address') ?>"><?= form_error($errors, 'address') ?></label>
+      <label>Ширина (lat)<input name="lat" inputmode="decimal" value="<?= form_value($v, 'lat') ?>" placeholder="42.68…"><?= form_error($errors, 'lat') ?></label>
+      <label>Дължина (lng)<input name="lng" inputmode="decimal" value="<?= form_value($v, 'lng') ?>" placeholder="23.32…"><?= form_error($errors, 'lng') ?></label>
     </div>
   </fieldset>
   <fieldset><legend>Контакти и профили</legend>
     <div class="grid2">
-      <label>Телефон<input name="phone" type="tel" maxlength="40" value="<?= $f('phone') ?>"><?= $err('phone') ?></label>
-      <label>Имейл<input name="email" type="email" maxlength="190" value="<?= $f('email') ?>"><?= $err('email') ?></label>
-      <label>Сайт<input name="website_url" maxlength="500" value="<?= $f('website_url') ?>" placeholder="https://…"><?= $err('website_url') ?></label>
-      <label>Instagram<input name="instagram_url" maxlength="300" value="<?= $f('instagram_url') ?>" placeholder="https://instagram.com/…"><?= $err('instagram_url') ?></label>
-      <label>Facebook<input name="facebook_url" maxlength="300" value="<?= $f('facebook_url') ?>"><?= $err('facebook_url') ?></label>
-      <label>TikTok<input name="tiktok_url" maxlength="300" value="<?= $f('tiktok_url') ?>"><?= $err('tiktok_url') ?></label>
+      <label>Телефон<input name="phone" type="tel" maxlength="40" value="<?= form_value($v, 'phone') ?>"><?= form_error($errors, 'phone') ?></label>
+      <label>Имейл<input name="email" type="email" maxlength="190" value="<?= form_value($v, 'email') ?>"><?= form_error($errors, 'email') ?></label>
+      <label>Сайт<input name="website_url" maxlength="500" value="<?= form_value($v, 'website_url') ?>" placeholder="https://…"><?= form_error($errors, 'website_url') ?></label>
+      <label>Instagram<input name="instagram_url" maxlength="300" value="<?= form_value($v, 'instagram_url') ?>" placeholder="https://instagram.com/…"><?= form_error($errors, 'instagram_url') ?></label>
+      <label>Facebook<input name="facebook_url" maxlength="300" value="<?= form_value($v, 'facebook_url') ?>"><?= form_error($errors, 'facebook_url') ?></label>
+      <label>TikTok<input name="tiktok_url" maxlength="300" value="<?= form_value($v, 'tiktok_url') ?>"><?= form_error($errors, 'tiktok_url') ?></label>
     </div>
   </fieldset>
   <fieldset><legend>Бизнес</legend>
     <div class="grid3">
-      <label>Рейтинг (0–5)<input name="rating" inputmode="decimal" value="<?= $f('rating') ?>"><?= $err('rating') ?></label>
-      <label>Брой отзиви<input name="reviews_count" inputmode="numeric" value="<?= $f('reviews_count') ?>"><?= $err('reviews_count') ?></label>
-      <label>Начин на записване<input name="booking_method" maxlength="120" value="<?= $f('booking_method') ?>" placeholder="телефон, Fresha, Instagram…"><?= $err('booking_method') ?></label>
+      <label>Рейтинг (0–5)<input name="rating" inputmode="decimal" value="<?= form_value($v, 'rating') ?>"><?= form_error($errors, 'rating') ?></label>
+      <label>Брой отзиви<input name="reviews_count" inputmode="numeric" value="<?= form_value($v, 'reviews_count') ?>"><?= form_error($errors, 'reviews_count') ?></label>
+      <label>Начин на записване<input name="booking_method" maxlength="120" value="<?= form_value($v, 'booking_method') ?>" placeholder="телефон, Fresha, Instagram…"><?= form_error($errors, 'booking_method') ?></label>
     </div>
-    <label>Работно време<input name="working_hours" maxlength="500" value="<?= $f('working_hours') ?>"><?= $err('working_hours') ?></label>
+    <label>Работно време<input name="working_hours" maxlength="500" value="<?= form_value($v, 'working_hours') ?>"><?= form_error($errors, 'working_hours') ?></label>
   </fieldset>
   <fieldset><legend>Оценка</legend>
     <div class="grid2">
       <label>Сайт<select name="website_status">
         <?php foreach (Status::WEBSITE as $k => $l): ?><option value="<?= e($k) ?>"<?= ($v['website_status'] ?? 'unknown') === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
-      </select><?= $err('website_status') ?></label>
-      <label>Ръчна оценка (0–100, празно = автоматична)<input name="lead_score_override" inputmode="numeric" value="<?= $f('lead_score_override') ?>"><?= $err('lead_score_override') ?></label>
+      </select><?= form_error($errors, 'website_status') ?></label>
+      <label>Ръчна оценка (0–100, празно = автоматична)<input name="lead_score_override" inputmode="numeric" value="<?= form_value($v, 'lead_score_override') ?>"><?= form_error($errors, 'lead_score_override') ?></label>
     </div>
   </fieldset>
-  <label>Бележки<textarea name="notes" maxlength="10000"><?= $f('notes') ?></textarea><?= $err('notes') ?></label>
+  <label>Бележки<textarea name="notes" maxlength="10000"><?= form_value($v, 'notes') ?></textarea><?= form_error($errors, 'notes') ?></label>
   <div class="row row-end">
     <a class="btn" href="<?= $id ? "/businesses/$id" : '/businesses' ?>">Отказ</a>
     <button class="btn btn-k">Запиши</button>

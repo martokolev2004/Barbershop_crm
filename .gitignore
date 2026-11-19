@@ -1,6 +1,6 @@
 /vendor/
 /config/config.php
-/config/setup_token.hash
+/config/setup_token.php
 /storage/backups/*
 !/storage/backups/.gitkeep
 /storage/logs/*

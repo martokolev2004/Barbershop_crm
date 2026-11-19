@@ -40,15 +40,21 @@ final class AreaRepository
         foreach ($this->all() as $row) {
             $byParent[(int) ($row['parent_id'] ?? 0)][] = $row;
         }
-        $build = function (int $parent) use (&$build, $byParent): array {
-            $out = [];
-            foreach ($byParent[$parent] ?? [] as $row) {
-                $row['children'] = $build((int) $row['id']);
-                $out[] = $row;
-            }
-            return $out;
-        };
-        return $build(0);
+        return $this->buildTree($byParent, 0);
+    }
+
+    /**
+     * @param array<int,list<array<string,mixed>>> $byParent
+     * @return list<array<string,mixed>>
+     */
+    private function buildTree(array $byParent, int $parent): array
+    {
+        $out = [];
+        foreach ($byParent[$parent] ?? [] as $row) {
+            $row['children'] = $this->buildTree($byParent, (int) $row['id']);
+            $out[] = $row;
+        }
+        return $out;
     }
 
     /** @return list<int> the area itself and all areas below it */
