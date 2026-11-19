@@ -10,7 +10,7 @@ namespace BarberLead\Discovery;
  */
 class HttpClient
 {
-    public const ALLOWED_HOSTS = ['overpass-api.de', 'places.googleapis.com'];
+    public const ALLOWED_HOSTS = ['overpass-api.de', 'overpass.kumi.systems', 'overpass.private.coffee', 'places.googleapis.com'];
     public const USER_AGENT = 'BarberLead/0.2 (small-business CRM; +https://crm.testvane.org)';
 
     /**

@@ -10,6 +10,18 @@ use BarberLead\Support\Text;
 class OverpassSource
 {
     public const ENDPOINT = 'https://overpass-api.de/api/interpreter';
+    /** Public Overpass instances, tried in turn when one is overloaded (HTTP 429/502/504 are common). */
+    public const ENDPOINTS = [
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.private.coffee/api/interpreter',
+    ];
+
+    /** Endpoint for the n-th attempt (0-based), rotating through the mirrors. */
+    public static function endpoint(int $attempt): string
+    {
+        return self::ENDPOINTS[$attempt % count(self::ENDPOINTS)];
+    }
 
     public function __construct(private HttpClient $http)
     {
@@ -27,12 +39,13 @@ class OverpassSource
     }
 
     /** @param array{south:float,west:float,north:float,east:float} $bbox */
-    public function search(array $bbox): SourceResult
+    public function search(array $bbox, int $attempt = 0): SourceResult
     {
-        $resp = $this->http->post(self::ENDPOINT, http_build_query(['data' => self::query($bbox)]),
+        $endpoint = self::endpoint($attempt);
+        $resp = $this->http->post($endpoint, http_build_query(['data' => self::query($bbox)]),
             ['Content-Type' => 'application/x-www-form-urlencoded'], 70);
         if ($resp['error'] !== null || $resp['status'] !== 200) {
-            return new SourceResult([], 'OpenStreetMap: ' . ($resp['error'] ?? 'HTTP ' . $resp['status']),
+            return new SourceResult([], 'OpenStreetMap (' . parse_url($endpoint, PHP_URL_HOST) . '): ' . ($resp['error'] ?? 'HTTP ' . $resp['status']),
                 HttpClient::isTransient($resp['status'], $resp['error']), 1);
         }
         $data = json_decode($resp['body'], true);

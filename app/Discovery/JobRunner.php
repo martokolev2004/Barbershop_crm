@@ -19,8 +19,8 @@ use PDOException;
 class JobRunner
 {
     public const LOCK_SECONDS = 150;
-    public const MAX_ATTEMPTS = 3;
-    private const BACKOFF = [60, 300, 900];
+    public const MAX_ATTEMPTS = 4;
+    private const BACKOFF = [30, 120, 600];
 
     private string $token;
 
@@ -119,7 +119,7 @@ class JobRunner
             $result = $this->runStep($step, $state, $id);
             if ($result === 'retry') {
                 $n = $state['attempts'][$step] ?? 0;
-                $this->release($id, $state, date('Y-m-d H:i:s', time() + self::BACKOFF[min($n - 1, 2)]));
+                $this->release($id, $state, date('Y-m-d H:i:s', time() + self::BACKOFF[min($n - 1, count(self::BACKOFF) - 1)]));
                 return (array) $this->find($id);
             }
             if ($result === 'continue') {
@@ -166,7 +166,7 @@ class JobRunner
             return 'next';
         }
         if ($source === 'osm') {
-            $res = (new OverpassSource($this->http))->search($state['scan']['bbox']);
+            $res = (new OverpassSource($this->http))->search($state['scan']['bbox'], (int) ($state['attempts']['source:osm'] ?? 0));
             return $this->handleResult('osm', $res, $state, $areaId, true);
         }
         if ($source === 'google') {
@@ -218,11 +218,12 @@ class JobRunner
         if ($area['geometry'] === null && $cityId !== null && !$this->settings->get("boundaries_city_$cityId")) {
             $importer = new BoundaryImporter($this->db, $this->http);
             foreach (['districts', 'neighborhoods'] as $part) {
-                $r = $importer->run($cityId, $part);
+                $r = $importer->run($cityId, $part, (int) ($state['attempts']['prepare'] ?? 0));
                 if (!$r['ok']) {
                     $n = ($state['attempts']['prepare'] ?? 0) + 1;
                     $state['attempts']['prepare'] = $n;
                     if ($r['transient'] && $n < self::MAX_ATTEMPTS) {
+                        $state['notes'][] = $r['message'] . " (опит $n, ще опитам пак)";
                         return 'retry';
                     }
                     $state['notes'][] = 'Границите от OpenStreetMap не се заредиха: ' . $r['message'];

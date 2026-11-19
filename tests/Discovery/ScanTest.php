@@ -167,14 +167,16 @@ final class ScanTest extends TestCase
         $this->assertNotNull($job['run_after'], 'back-off scheduled');
         $this->assertNull($r->claim($jobId), 'not claimable before run_after');
 
-        // pretend the back-off passed, fail two more times → source reported as failed
-        for ($i = 0; $i < 2; $i++) {
+        // pretend the back-off passed; every retry goes to the next mirror and fails too → reported as failed
+        for ($i = 1; $i < JobRunner::MAX_ATTEMPTS; $i++) {
             $this->db->exec("UPDATE jobs SET run_after = NOW() - INTERVAL 1 SECOND WHERE id = $jobId");
-            $this->http->push('overpass-api.de', 503, '');
+            $this->http->push((string) parse_url(\BarberLead\Discovery\OverpassSource::endpoint($i), PHP_URL_HOST), 503, '');
             $job = $r->runSlice((array) $r->claim($jobId), 30);
         }
         $this->assertSame('failed', $job['status']);
         $this->assertStringContainsString('HTTP 503', (string) $job['error']);
+        $hosts = array_map(fn ($c) => parse_url($c['url'], PHP_URL_HOST), array_slice($this->http->calls, 2));
+        $this->assertSame(['overpass-api.de', 'overpass.kumi.systems', 'overpass.private.coffee', 'overpass-api.de'], $hosts, 'mirrors rotate');
         $this->assertSame(0, $this->countRows("SELECT COUNT(*) FROM businesses WHERE name LIKE 'FIXTURE%'"));
     }
 
@@ -236,5 +238,22 @@ final class ScanTest extends TestCase
         $this->assertSame(['archived', 500], array_values(array_map(fn ($v) => is_numeric($v) ? (int) $v : $v,
             $this->db->query('SELECT status, merged_into_id FROM businesses WHERE id = 501')->fetch())));
         $this->assertSame('merged', $this->db->query('SELECT status FROM duplicate_candidates')->fetchColumn());
+    }
+
+    public function testOverloadedServerFallsBackToMirror(): void
+    {
+        $lozenets = $this->areaId('lozenets', 'district');
+        $this->pushBoundaries();
+        $this->http->push('overpass-api.de', 502, 'Bad Gateway');
+        $this->http->push('overpass.kumi.systems', 200, Fixtures::overpassBusinessesJson());
+        $r = $this->runner();
+        [$jobId] = $r->queueScan($lozenets, ['osm'], 't');
+        $job = $r->runSlice((array) $r->claim($jobId), 30);
+        $this->assertSame('running', $job['status']);
+        $this->assertStringContainsString('HTTP 502 (опит 1', (string) $job['log'], 'the reason is visible while waiting');
+        $this->db->exec("UPDATE jobs SET run_after = NOW() - INTERVAL 1 SECOND WHERE id = $jobId");
+        $job = $r->runSlice((array) $r->claim($jobId), 30);
+        $this->assertSame('done', $job['status']);
+        $this->assertSame(3, (int) $job['new_count']);
     }
 }

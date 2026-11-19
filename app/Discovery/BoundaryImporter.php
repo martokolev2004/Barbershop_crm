@@ -43,7 +43,7 @@ class BoundaryImporter
      * Runs one of the two steps ('districts' or 'neighborhoods') for a city.
      * @return array{ok:bool, transient:bool, message:string, matched:int, added:int, moved:int}
      */
-    public function run(int $cityId, string $step): array
+    public function run(int $cityId, string $step, int $attempt = 0): array
     {
         $city = $this->db->prepare("SELECT * FROM areas WHERE id = ? AND type = 'city'");
         $city->execute([$cityId]);
@@ -53,7 +53,7 @@ class BoundaryImporter
             return ['ok' => false, 'transient' => false, 'message' => 'Няма зададена област за търсене за този град', 'matched' => 0, 'added' => 0, 'moved' => 0];
         }
         $query = $step === 'districts' ? self::districtQuery($bbox) : self::neighborhoodQuery($bbox);
-        $resp = $this->http->post(OverpassSource::ENDPOINT, http_build_query(['data' => $query]),
+        $resp = $this->http->post(OverpassSource::endpoint($attempt), http_build_query(['data' => $query]),
             ['Content-Type' => 'application/x-www-form-urlencoded'], 100);
         if ($resp['error'] !== null || $resp['status'] !== 200) {
             return ['ok' => false, 'transient' => HttpClient::isTransient($resp['status'], $resp['error']),
