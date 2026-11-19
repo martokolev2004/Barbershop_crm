@@ -134,4 +134,53 @@ final class HttpTest extends TestCase
         $this->req('POST', '/logout');
         $this->assertSame(303, $this->req('GET', '/')->status);
     }
+
+    public function testScanPagesAndQueueing(): void
+    {
+        $this->login();
+        $lozenets = (int) $this->db->query("SELECT id FROM areas WHERE slug = 'lozenets' AND type = 'district'")->fetchColumn();
+        foreach (['/jobs', '/duplicates'] as $path) {
+            $this->assertSame(200, $this->req('GET', $path)->status, "GET $path");
+        }
+        $r = $this->req('POST', "/areas/$lozenets/scan", ['google' => '1']);
+        $this->assertSame(303, $r->status);
+        $job = $this->db->query('SELECT * FROM jobs')->fetch();
+        $this->assertSame(['sources' => ['osm']], json_decode($job['params'], true), 'Google is not used without a key');
+        $page = $this->req('GET', '/businesses', [], ['area' => (string) $lozenets, 'job' => (string) $job['id']]);
+        $this->assertStringContainsString('data-job="' . $job['id'] . '"', $page->body);
+        $status = json_decode($this->req('GET', '/jobs/' . $job['id'], [], [], true)->body, true);
+        $this->assertSame('queued', $status['status']);
+        $this->assertFalse($status['final']);
+        // second click while active → no new job
+        $this->req('POST', "/areas/$lozenets/scan");
+        $this->assertSame(1, (int) $this->db->query('SELECT COUNT(*) FROM jobs')->fetchColumn());
+        $this->req('POST', '/jobs/' . $job['id'] . '/cancel');
+        $this->assertSame('cancelled', $this->db->query('SELECT status FROM jobs')->fetchColumn());
+
+        $this->req('POST', "/areas/$lozenets/schedule", ['enabled' => '1', 'interval_days' => '14']);
+        $this->assertSame(14, (int) $this->db->query('SELECT interval_days FROM scan_schedules')->fetchColumn());
+    }
+
+    public function testGoogleKeyIsStoredButNeverShown(): void
+    {
+        $this->login();
+        $key = 'AIzaFIXTUREkey0123456789abcdefghijklmn';
+        $this->req('POST', '/settings/google', ['google_api_key' => $key, 'google_monthly_cap' => '500']);
+        $this->assertSame($key, $this->db->query("SELECT value FROM settings WHERE name = 'google_api_key'")->fetchColumn());
+        $body = $this->req('GET', '/settings')->body;
+        $this->assertStringNotContainsString($key, $body);
+        $this->assertStringContainsString('…klmn', $body);
+        $this->req('POST', '/settings/google', ['google_api_key' => 'bad key!']);
+        $this->assertSame($key, $this->db->query("SELECT value FROM settings WHERE name = 'google_api_key'")->fetchColumn());
+    }
+
+    public function testRelevanceFilterHidesWomensSalonsByDefault(): void
+    {
+        $this->login();
+        $this->db->exec("INSERT INTO businesses (name, name_normalized, relevance) VALUES ('FIXTURE Lady Salon', 'lady', 'low'), ('FIXTURE Gents', 'gents', 'high')");
+        $list = $this->req('GET', '/businesses')->body;
+        $this->assertStringContainsString('FIXTURE Gents', $list);
+        $this->assertStringNotContainsString('FIXTURE Lady Salon', $list);
+        $this->assertStringContainsString('FIXTURE Lady Salon', $this->req('GET', '/businesses', [], ['rel' => 'all'])->body);
+    }
 }

@@ -12,7 +12,7 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
   <div>
     <div class="crumbs"><a href="/businesses">Бизнеси</a><?php if ($b['area_id']): ?> / <a href="<?= e(url('/businesses', ['area' => $b['area_id']])) ?>"><?= e($areaLabel) ?></a><?php endif; ?></div>
     <h1><?= e($b['name']) ?></h1>
-    <div class="row small"><?= status_badge($b['status']) ?> <?= website_badge($b['website_status']) ?>
+    <div class="row small"><?= status_badge($b['status']) ?> <?= website_badge($b['website_status']) ?> <?= relevance_badge($b['relevance']) ?>
       <?php if ($score !== null): ?><span class="score<?= (int) $score >= 70 ? ' hi' : '' ?>" title="Оценка на лийда"><?= (int) $score ?></span><?php endif; ?></div>
   </div>
   <div class="row">
@@ -32,7 +32,8 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
     <section class="card">
       <h2>Данни</h2>
       <dl class="kv">
-        <dt>Квартал</dt><dd><?= e($areaLabel) ?></dd>
+        <dt>Квартал</dt><dd><?= e($areaLabel) ?><?= $b['geo_confidence'] === 'approx' ? ' <span class="geo-approx">(приблизително)</span>' : '' ?></dd>
+        <?php if ($b['relevance_reason']): ?><dt>Подходящ</dt><dd><?= e($b['relevance_reason']) ?></dd><?php endif; ?>
         <dt>Адрес</dt><dd><?= unknown_or($b['address']) ?></dd>
         <dt>Телефон</dt><dd><?= $b['phone'] ? '<a href="tel:' . e($b['phone_normalized'] ?? $b['phone']) . '">' . e($b['phone']) . '</a>' : unknown_or(null) ?></dd>
         <dt>Имейл</dt><dd><?= $b['email'] ? '<a href="mailto:' . e($b['email']) . '">' . e($b['email']) . '</a>' : unknown_or(null) ?></dd>
@@ -58,6 +59,28 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
         <?php if ($b['score_explanation']): ?><dt>Защо</dt><dd class="small"><?= nl2br(e($b['score_explanation'])) ?></dd><?php endif; ?>
       </dl>
       <p class="muted small">Автоматичната проверка на сайта и точкуването идват във Фаза 3. Дотогава оценката на сайта и ръчната оценка се задават от „Редактирай“.</p>
+    </section>
+
+    <section class="card" id="sources">
+      <h2>Източници</h2>
+      <?php if (!$sources): ?>
+        <p class="muted small">Добавен ръчно, без външен източник.</p>
+      <?php else: ?>
+        <p class="muted small">Какво казва всеки източник и кога е проверено. Различията се записват в историята като „Различни данни“.</p>
+        <?php foreach ($sources as $src): $d = json_decode((string) $src['data'], true) ?: []; ?>
+          <details class="box">
+            <summary class="small"><?= e(\BarberLead\Discovery\Importer::sourceLabel($src['source'])) ?> · видян последно <?= fmt_date($src['last_seen_at'], true) ?><?= $src['match_reason'] && $src['match_reason'] !== 'нов запис' ? ' · свързан: ' . e($src['match_reason']) : '' ?></summary>
+            <dl class="kv small">
+              <?php foreach (['name' => 'Име', 'address' => 'Адрес', 'phone' => 'Телефон', 'website' => 'Сайт', 'instagram' => 'Instagram', 'facebook' => 'Facebook', 'opening_hours' => 'Работно време', 'rating' => 'Рейтинг', 'reviews_count' => 'Отзиви'] as $k => $label): if (!isset($d[$k])) continue; ?>
+                <dt><?= e($label) ?></dt><dd><?= in_array($k, ['website', 'instagram', 'facebook'], true) ? ext_link((string) $d[$k]) : e(is_scalar($d[$k]) ? (string) $d[$k] : '') ?></dd>
+              <?php endforeach; ?>
+              <?php if (!empty($d['purged'])): ?><dt>Данни</dt><dd class="muted">изчистени след 30 дни (условия на Google); пази се само идентификаторът</dd><?php endif; ?>
+              <?php if ($src['url']): ?><dt>Линк</dt><dd><?= ext_link($src['url'], 'отвори в източника') ?></dd><?php endif; ?>
+            </dl>
+          </details>
+        <?php endforeach; ?>
+        <p class="muted small">Данни от OpenStreetMap © OpenStreetMap contributors (ODbL).</p>
+      <?php endif; ?>
     </section>
 
     <?php if ($b['notes']): ?>

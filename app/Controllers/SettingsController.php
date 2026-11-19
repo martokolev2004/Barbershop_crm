@@ -6,6 +6,7 @@ namespace BarberLead\Controllers;
 
 use BarberLead\App;
 use BarberLead\Backup;
+use BarberLead\Migrator;
 use BarberLead\Http\Request;
 use BarberLead\Http\Response;
 
@@ -28,6 +29,10 @@ final class SettingsController
             'followUpDays' => $this->app->settings->get('follow_up_days', '5'),
             'backups' => $backups,
             'audit' => $this->app->audit->recent(20),
+            'googleKeySuffix' => ($k = (string) $this->app->settings->get('google_api_key', '')) !== '' ? substr($k, -4) : null,
+            'googleCap' => $this->app->settings->get('google_monthly_cap', '900'),
+            'googleUsage' => (int) $this->app->settings->get('google_usage_' . date('Ym'), '0'),
+            'pending' => (new Migrator($this->app->db, BL_ROOT . '/migrations'))->pending(),
         ]);
     }
 
@@ -77,5 +82,49 @@ final class SettingsController
     {
         $dir = (string) ($this->app->config['backup_dir'] ?? 'storage/backups');
         return str_starts_with($dir, '/') ? $dir : BL_ROOT . '/' . $dir;
+    }
+
+    public function google(Request $req): Response
+    {
+        $key = trim((string) ($req->post['google_api_key'] ?? ''));
+        $cap = $req->str('google_monthly_cap');
+        if ($cap !== '' && (!ctype_digit($cap) || (int) $cap > 100000)) {
+            $this->app->session->flash('err', 'Лимитът трябва да е цяло число.');
+            return Response::redirect('/settings#google');
+        }
+        if ($req->str('remove_key') === '1') {
+            $this->app->settings->set('google_api_key', null);
+            $this->app->session->flash('ok', 'Google ключът е изтрит.');
+        } elseif ($key !== '') {
+            if (!preg_match('/^[A-Za-z0-9_\-]{30,60}$/', $key)) {
+                $this->app->session->flash('err', 'Това не прилича на Google API ключ.');
+                return Response::redirect('/settings#google');
+            }
+            $this->app->settings->set('google_api_key', $key);
+            $this->app->session->flash('ok', 'Google ключът е записан.');
+        } else {
+            $this->app->session->flash('ok', 'Записано.');
+        }
+        if ($cap !== '') {
+            $this->app->settings->set('google_monthly_cap', $cap);
+        }
+        $this->app->audit->record($this->app->actor(), 'google_settings', null, null, [], $req->ip);
+        return Response::redirect('/settings#google');
+    }
+
+    /** Applies pending database migrations (no SSH on the hosting). Always backs up first. */
+    public function migrate(Request $req): Response
+    {
+        $migrator = new Migrator($this->app->db, BL_ROOT . '/migrations');
+        if (!$migrator->pending()) {
+            $this->app->session->flash('ok', 'Базата вече е обновена.');
+            return Response::redirect('/settings');
+        }
+        @set_time_limit(120);
+        $file = (new Backup($this->app->db, $this->backupDir()))->create('pre-migrate');
+        $done = $migrator->migrate();
+        $this->app->audit->record($this->app->actor(), 'migrate', null, null, ['applied' => $done, 'backup' => basename($file)], $req->ip);
+        $this->app->session->flash('ok', 'Базата е обновена (' . implode(', ', $done) . '). Бекъп: ' . basename($file));
+        return Response::redirect('/');
     }
 }

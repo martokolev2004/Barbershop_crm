@@ -47,6 +47,21 @@ Updates: upload the changed files, then run the migrations (they take a backup f
 php bin/migrate.php up
 ```
 
+## Background worker (scans)
+
+cPanel → Cron Jobs, every 5 minutes:
+`*/5 * * * * /usr/local/bin/php /home/<user>/crm.testvane.org/bin/worker.php >/dev/null`
+
+Scans also progress while the neighborhood page is open in the browser. Both paths use the same database
+lock, so a job never runs twice at the same time.
+
+## Google Places (optional)
+
+1. Google Cloud Console → new project → enable **Places API (New)** → create an API key.
+2. Restrict the key: API restriction “Places API (New)”, application restriction “IP addresses” = the hosting IP.
+3. Set a quota cap in Google Cloud (APIs & Services → Places API (New) → Quotas) as a second safety net.
+4. CRM → Настройки → Google Places: paste the key and keep the monthly cap below the free tier.
+
 ## Backups
 
 - Manual: Settings → „Направи бекъп сега“, or `php bin/backup.php`.

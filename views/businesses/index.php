@@ -30,9 +30,52 @@ use BarberLead\Status;
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'none', 'page' => null])) ?>"><strong><?= $areaStats['no_website'] ?></strong><span>без открит сайт</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'weak', 'page' => null])) ?>"><strong><?= $areaStats['weak_website'] ?></strong><span>слаб сайт</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'offer_sent', 'page' => null])) ?>"><strong><?= $areaStats['offer_sent'] ?></strong><span>пуснати оферти</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['rel' => 'low', 'page' => null])) ?>"><strong><?= $areaStats['low_relevance'] ?></strong><span>неподходящи (скрити)</span></a>
 </div>
-<div class="notice small" role="note">История на сканиранията: още няма. Бутонът „Сканирай квартала“ идва във Фаза 2 (OpenStreetMap + Google Places).</div>
-<p></p>
+<div class="scan-panel">
+  <section class="card">
+    <h2>Сканиране</h2>
+    <form method="post" action="/areas/<?= (int) $area['id'] ?>/scan" class="form">
+      <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+      <p class="muted small">Търси бръснарници и фризьори в границите на „<?= e($area['name_bg']) ?>“. Съществуващите записи се обновяват, не се дублират.</p>
+      <div class="row">
+        <label class="check"><input type="checkbox" checked disabled> OpenStreetMap</label>
+        <label class="check"><input type="checkbox" name="google" value="1"<?= $hasGoogleKey ? ' checked' : ' disabled' ?>> Google Places<?= $hasGoogleKey ? '' : ' <span class="muted small">(няма ключ — <a href="/settings#google">Настройки</a>)</span>' ?></label>
+      </div>
+      <div class="row"><button class="btn btn-k"<?= $activeJob ? ' disabled' : '' ?>>Сканирай квартала</button></div>
+    </form>
+    <div id="job-progress" class="progress<?= $activeJob ? '' : ' hidden' ?>" data-job="<?= (int) $activeJob ?>">
+      <strong id="job-status">Зареждам…</strong>
+      <span id="job-counts" class="small muted"></span>
+      <div id="job-log" class="pre"></div>
+    </div>
+    <form method="post" action="/areas/<?= (int) $area['id'] ?>/schedule" class="row small">
+      <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+      <label class="check"><input type="checkbox" name="enabled" value="1"<?= $schedule && $schedule['enabled'] ? ' checked' : '' ?>> Автоматично на всеки</label>
+      <input type="number" name="interval_days" min="7" max="365" value="<?= (int) ($schedule['interval_days'] ?? 30) ?>" class="w-num"> дни
+      <button class="btn btn-sm">Запиши</button>
+      <?php if ($schedule && $schedule['enabled']): ?><span class="muted">следващо: <?= fmt_date($schedule['next_run_at']) ?></span><?php endif; ?>
+    </form>
+  </section>
+  <section class="card">
+    <h2>История на сканиранията</h2>
+    <?php if (!$scans): ?>
+      <p class="muted small">Кварталът още не е сканиран.</p>
+    <?php else: ?>
+      <table class="list"><tbody>
+      <?php foreach ($scans as $j): $src = json_decode((string) $j['params'], true)['sources'] ?? []; ?>
+        <tr>
+          <td class="nowrap small"><?= fmt_date($j['created_at'], true) ?><span class="sub"><?= e(implode(' + ', array_map(fn ($x) => $x === 'osm' ? 'OSM' : 'Google', $src))) ?></span></td>
+          <td><?= job_badge($j['status']) ?><span class="sub"><?= e(duration($j['started_at'], $j['finished_at'])) ?></span></td>
+          <td class="small"><?= (int) $j['found_count'] ?> намерени · <?= (int) $j['new_count'] ?> нови · <?= (int) $j['updated_count'] ?> обновени<?= $j['review_count'] ? ' · <a href="/duplicates">' . (int) $j['review_count'] . ' за преглед</a>' : '' ?>
+            <?php if ($j['error']): ?><span class="sub field-err"><?= nl2br(e($j['error'])) ?></span><?php endif; ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody></table>
+      <p class="muted small">„Завършено“ значи, че всички избрани източници са обработени, не че са намерени всички бизнеси в квартала.</p>
+    <?php endif; ?>
+  </section>
+</div>
 <?php endif; ?>
 
 <form class="filters" method="get" action="/businesses" role="search">
@@ -45,6 +88,9 @@ use BarberLead\Status;
   <select name="web" aria-label="Сайт" data-autosubmit>
     <option value="">Всякакъв сайт</option>
     <?php foreach (Status::WEBSITE as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['website'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
+  </select>
+  <select name="rel" aria-label="Подходящи" data-autosubmit>
+    <?php foreach (['relevant' => 'Подходящи (без дамски/козметика)', 'high' => 'Само бръснарници / мъжки', 'medium' => 'Само фризьори (неясно)', 'low' => 'Неподходящи', 'all' => 'Всички'] as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['relevance'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
   </select>
   <button class="btn">Търси</button>
   <?php if ($filters['q'] !== '' || $filters['status'] !== '' || $filters['website'] !== ''): ?><a class="btn" href="<?= e(url('/businesses', ['area' => $area['id'] ?? null])) ?>">Изчисти</a><?php endif; ?>
@@ -74,7 +120,7 @@ use BarberLead\Status;
   <?php foreach ($result['rows'] as $b): $score = $b['score']; ?>
     <tr>
       <td class="name"><a href="/businesses/<?= (int) $b['id'] ?>"><?= e($b['name']) ?></a>
-        <span class="sub"><?= e($b['address'] ?? '') ?><?= $b['phone'] ? ' · ' . e($b['phone']) : '' ?></span></td>
+        <span class="sub"><?= relevance_badge($b['relevance']) ?> <?= e($b['address'] ?? '') ?><?= $b['phone'] ? ' · ' . e($b['phone']) : '' ?></span></td>
       <td data-label="Квартал"><?= e($app->areas->label($b['area_id'] !== null ? (int) $b['area_id'] : null)) ?></td>
       <td data-label="Сайт"><?= website_badge($b['website_status']) ?></td>
       <td data-label="Статус"><?= status_badge($b['status']) ?><?php if ($b['last_offer_at']): ?><span class="sub">оферта <?= fmt_date($b['last_offer_at']) ?></span><?php endif; ?></td>

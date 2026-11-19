@@ -7,6 +7,8 @@ namespace BarberLead;
 use BarberLead\Controllers\AuthController;
 use BarberLead\Controllers\BusinessController;
 use BarberLead\Controllers\DashboardController;
+use BarberLead\Controllers\DuplicateController;
+use BarberLead\Controllers\ScanController;
 use BarberLead\Controllers\KanbanController;
 use BarberLead\Controllers\OfferController;
 use BarberLead\Controllers\SettingsController;
@@ -78,6 +80,17 @@ final class App
         $r->post('/settings', 'settings.save');
         $r->post('/settings/password', 'settings.password');
         $r->post('/settings/backup', 'settings.backup');
+        $r->post('/settings/google', 'settings.google');
+        $r->post('/settings/migrate', 'settings.migrate');
+        $r->post('/areas/{id}/scan', 'scan.start');
+        $r->post('/areas/{id}/schedule', 'scan.schedule');
+        $r->get('/jobs', 'jobs');
+        $r->get('/jobs/{id}', 'job.status');
+        $r->post('/jobs/{id}/run', 'job.run');
+        $r->post('/jobs/{id}/cancel', 'job.cancel');
+        $r->get('/duplicates', 'dup.index');
+        $r->post('/duplicates/{id}/merge', 'dup.merge');
+        $r->post('/duplicates/{id}/dismiss', 'dup.dismiss');
         return $r;
     }
 
@@ -105,6 +118,17 @@ final class App
             'settings.save' => (new SettingsController($this))->save($req),
             'settings.password' => (new SettingsController($this))->password($req),
             'settings.backup' => (new SettingsController($this))->backup($req),
+            'settings.google' => (new SettingsController($this))->google($req),
+            'settings.migrate' => (new SettingsController($this))->migrate($req),
+            'scan.start' => (new ScanController($this))->start($req, $id),
+            'scan.schedule' => (new ScanController($this))->schedule($req, $id),
+            'jobs' => (new ScanController($this))->index($req),
+            'job.status' => (new ScanController($this))->status($req, $id),
+            'job.run' => (new ScanController($this))->run($req, $id),
+            'job.cancel' => (new ScanController($this))->cancel($req, $id),
+            'dup.index' => (new DuplicateController($this))->index($req),
+            'dup.merge' => (new DuplicateController($this))->merge($req, $id),
+            'dup.dismiss' => (new DuplicateController($this))->dismiss($req, $id),
             default => $this->error(404, 'Няма такава страница.'),
         };
     }
@@ -112,6 +136,14 @@ final class App
     public function handle(Request $req): Response
     {
         $loggedIn = $this->auth->userId() !== null;
+        $this->view->share('app', $this);
+        $this->view->share('user', $this->auth->username());
+        $this->view->share('csrf', $this->session->csrfToken());
+        $this->view->share('path', $req->path);
+        $this->view->share('dueFollowUps', $loggedIn ? $this->offers->countDueFollowUps() : 0);
+        $this->view->share('pendingMigrations', $loggedIn ? count((new Migrator($this->db, BL_ROOT . '/migrations'))->pending()) : 0);
+        $this->view->share('openDuplicates', $loggedIn ? $this->countOpenDuplicates() : 0);
+
         if (!$loggedIn && !in_array($req->path, self::PUBLIC_PATHS, true)) {
             if ($req->wantsJson) {
                 return Response::json(['error' => 'Не си влязъл.'], 401);
@@ -125,17 +157,27 @@ final class App
                 : $this->error(419, 'Сесията е изтекла или формата е стара. Върни се назад и презареди страницата.');
         }
 
-        $this->view->share('app', $this);
-        $this->view->share('user', $this->auth->username());
-        $this->view->share('csrf', $this->session->csrfToken());
-        $this->view->share('path', $req->path);
-        $this->view->share('dueFollowUps', $loggedIn ? $this->offers->countDueFollowUps() : 0);
-
         $match = $this->router->match($req->method, $req->path);
         if ($match === null) {
             return $this->error(404, 'Няма такава страница.');
         }
+        // New code on an old schema would fail: only the update button works until migrations ran.
+        if ($loggedIn && !in_array($match[0], ['settings.migrate', 'logout', 'login', 'login.form'], true)
+            && (new Migrator($this->db, BL_ROOT . '/migrations'))->pending()) {
+            return $req->wantsJson
+                ? Response::json(['error' => 'Базата трябва да се обнови (Настройки).'], 503)
+                : $this->page('migrate', ['title' => 'Обновяване', 'pending' => (new Migrator($this->db, BL_ROOT . '/migrations'))->pending()], 503);
+        }
         return $this->dispatch($match[0], $req, $match[1]);
+    }
+
+    private function countOpenDuplicates(): int
+    {
+        try {
+            return (int) $this->db->query("SELECT COUNT(*) FROM duplicate_candidates WHERE status = 'open'")->fetchColumn();
+        } catch (\PDOException) {
+            return 0; // table not migrated yet
+        }
     }
 
     public function actor(): string

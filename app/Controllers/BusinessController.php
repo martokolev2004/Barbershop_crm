@@ -24,11 +24,13 @@ final class BusinessController
         $areaIds = $area ? $this->app->areas->descendantIds((int) $area['id']) : null;
         $status = $req->str('status');
         $website = $req->str('web');
+        $rel = $req->str('rel', 'relevant');
         $filters = [
             'q' => mb_substr($req->str('q'), 0, 100),
             'area_ids' => $areaIds ?? [],
             'status' => Status::isValid($status) ? $status : '',
             'website' => isset(Status::WEBSITE[$website]) ? $website : '',
+            'relevance' => in_array($rel, ['relevant', 'high', 'medium', 'low', 'all'], true) ? $rel : 'relevant',
             'sort' => $req->str('sort', 'updated'),
             'dir' => $req->str('dir', 'desc'),
             'page' => $req->int('page', 1),
@@ -43,7 +45,35 @@ final class BusinessController
             'result' => $result,
             'tree' => $this->app->areas->tree(),
             'counts' => $this->app->areas->totalCounts(),
+            'scans' => $area ? $this->scans((int) $area['id']) : [],
+            'activeJob' => $req->int('job') ?: ($area ? $this->activeJob((int) $area['id']) : 0),
+            'schedule' => $area ? $this->schedule((int) $area['id']) : null,
+            'hasGoogleKey' => (bool) $this->app->settings->get('google_api_key'),
         ]);
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function scans(int $areaId): array
+    {
+        $stmt = $this->app->db->prepare("SELECT * FROM jobs WHERE type = 'scan' AND area_id = ? ORDER BY id DESC LIMIT 10");
+        $stmt->execute([$areaId]);
+        return $stmt->fetchAll();
+    }
+
+    private function activeJob(int $areaId): int
+    {
+        $stmt = $this->app->db->prepare("SELECT id FROM jobs WHERE area_id = ? AND status IN ('queued','running') ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$areaId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** @return array<string,mixed>|null */
+    private function schedule(int $areaId): ?array
+    {
+        $stmt = $this->app->db->prepare('SELECT * FROM scan_schedules WHERE area_id = ?');
+        $stmt->execute([$areaId]);
+        $r = $stmt->fetch();
+        return $r === false ? null : $r;
     }
 
     public function show(Request $req, int $id): Response
@@ -70,7 +100,16 @@ final class BusinessController
             'outreach' => $outreach,
             'followUpDays' => (int) $this->app->settings->get('follow_up_days', '5'),
             'duplicates' => $this->app->businesses->likelyDuplicates($b['phone_normalized'], $b['website_domain'], $b['name_normalized'], $id),
+            'sources' => $this->sources($id),
         ]);
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function sources(int $id): array
+    {
+        $stmt = $this->app->db->prepare('SELECT * FROM business_sources WHERE business_id = ? ORDER BY last_seen_at DESC');
+        $stmt->execute([$id]);
+        return $stmt->fetchAll();
     }
 
     public function createForm(Request $req): Response

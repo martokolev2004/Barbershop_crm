@@ -41,7 +41,7 @@ final class BusinessRepository
     }
 
     /**
-     * @param array{q?:string, area_ids?:list<int>, status?:string, website?:string, sort?:string, dir?:string, page?:int, per_page?:int} $f
+     * @param array{q?:string, area_ids?:list<int>, status?:string, website?:string, relevance?:string, sort?:string, dir?:string, page?:int, per_page?:int} $f
      * @return array{rows: list<array<string,mixed>>, total: int, page: int, pages: int}
      */
     public function search(array $f): array
@@ -85,6 +85,12 @@ final class BusinessRepository
             $params[] = $f['status'];
         } else {
             $where[] = "b.status <> 'archived'";
+        }
+        if (($f['relevance'] ?? '') === 'relevant') {
+            $where[] = "b.relevance IN ('high','medium')";
+        } elseif (in_array($f['relevance'] ?? '', ['high', 'medium', 'low'], true)) {
+            $where[] = 'b.relevance = ?';
+            $params[] = $f['relevance'];
         }
         if (!empty($f['website'])) {
             $where[] = 'b.website_status = ?';
@@ -183,7 +189,7 @@ final class BusinessRepository
             $parts[] = 'website_domain = ?';
             $params[] = $domain;
         }
-        $sql = 'SELECT id, name, address FROM businesses WHERE (' . implode(' OR ', $parts) . ')';
+        $sql = 'SELECT id, name, address FROM businesses WHERE merged_into_id IS NULL AND (' . implode(' OR ', $parts) . ')';
         if ($exceptId) {
             $sql .= ' AND id <> ?';
             $params[] = $exceptId;
@@ -200,7 +206,7 @@ final class BusinessRepository
      */
     public function stats(?array $areaIds = null): array
     {
-        $where = "status <> 'archived'";
+        $where = "status <> 'archived' AND relevance IN ('high','medium')";
         if ($areaIds !== null) {
             $where .= $areaIds ? ' AND area_id IN (' . implode(',', array_map('intval', $areaIds)) . ')' : ' AND 0';
         }
@@ -213,6 +219,7 @@ final class BusinessRepository
                     COALESCE(SUM(status = 'offer_sent'), 0) AS offer_sent,
                     COALESCE(SUM(status IN ('replied','negotiation')), 0) AS talking,
                     COALESCE(SUM(status = 'won'), 0) AS won
+                    , (SELECT COUNT(*) FROM businesses WHERE " . str_replace("relevance IN ('high','medium')", "relevance = 'low'", $where) . ") AS low_relevance
              FROM businesses WHERE $where"
         )->fetch();
         return array_map('intval', $row ?: []);

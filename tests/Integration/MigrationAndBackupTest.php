@@ -57,7 +57,14 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
-        // 0004 and 0003 and 0002 roll back without data-loss guard; 0001 drops tables.
+        // 0005 drops tables: refused without force
+        try {
+            $m->rollback();
+            $this->fail('0005 rollback must need --force');
+        } catch (\RuntimeException) {
+        }
+        $this->assertSame('0005_discovery', $m->rollback(true));
+        // 0004, 0003 and 0002 roll back without data-loss guard; 0001 drops tables.
         $this->assertSame('0004_import_existing_demos', $m->rollback());
         $this->assertSame('0003_default_settings', $m->rollback());
         $this->assertSame('0002_seed_areas', $m->rollback());
@@ -69,6 +76,7 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
+        $m->rollback(true); // 0005 discovery tables
         $m->rollback(); // removes Prime import
         $m->rollback(); // settings
         $areaId = (int) $db->query("SELECT id FROM areas WHERE slug = 'strelbishte'")->fetchColumn();

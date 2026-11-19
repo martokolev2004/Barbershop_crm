@@ -27,6 +27,27 @@
     </section>
   </div>
   <div class="cards">
+    <?php if ($pending): ?>
+    <section class="card">
+      <h2>Обновяване на базата</h2>
+      <p class="muted small">Чакащи промени: <?= e(implode(', ', $pending)) ?>. Преди това се прави бекъп.</p>
+      <form method="post" action="/settings/migrate"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><button class="btn btn-k btn-sm">Обнови базата</button></form>
+    </section>
+    <?php endif; ?>
+    <section class="card" id="google">
+      <h2>Google Places</h2>
+      <p class="muted small">Ключът се пази само в базата на сървъра и не се показва никъде. Ограничи го в Google Cloud само до „Places API (New)“ и до IP адреса на хостинга (87.121.18.11).</p>
+      <form method="post" action="/settings/google" class="form">
+        <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+        <label>API ключ<input name="google_api_key" type="password" autocomplete="off" placeholder="<?= $googleKeySuffix ? 'записан ключ …' . e($googleKeySuffix) . ' (остави празно, за да го запазиш)' : 'AIza…' ?>"></label>
+        <label>Месечен лимит заявки (безплатно: до 1000 за данни с телефон/сайт)<input name="google_monthly_cap" type="number" min="0" max="100000" value="<?= e($googleCap) ?>"></label>
+        <p class="small">Този месец: <strong><?= (int) $googleUsage ?></strong> заявки.</p>
+        <div class="row">
+          <button class="btn btn-sm">Запиши</button>
+          <?php if ($googleKeySuffix): ?><label class="check small"><input type="checkbox" name="remove_key" value="1"> изтрий ключа</label><?php endif; ?>
+        </div>
+      </form>
+    </section>
     <section class="card" id="password">
       <h2>Смяна на парола</h2>
       <form method="post" action="/settings/password" class="form">

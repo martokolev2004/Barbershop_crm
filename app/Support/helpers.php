@@ -101,6 +101,7 @@ function biz_list_url(array $filters, ?array $area, array $over = []): string
 {
     return url('/businesses', array_merge([
         'area' => $area['id'] ?? null, 'q' => $filters['q'], 'status' => $filters['status'], 'web' => $filters['website'],
+        'rel' => ($filters['relevance'] ?? 'relevant') !== 'relevant' ? $filters['relevance'] : null,
         'sort' => $filters['sort'] !== 'updated' ? $filters['sort'] : null, 'dir' => $filters['dir'] !== 'desc' ? $filters['dir'] : null,
     ], $over));
 }
@@ -112,4 +113,23 @@ function sort_link(array $filters, ?array $area, string $key, string $label): st
     $dir = $on && $filters['dir'] === 'desc' ? 'asc' : 'desc';
     $arrow = $on ? ($filters['dir'] === 'asc' ? ' ↑' : ' ↓') : '';
     return '<a class="' . ($on ? 'on' : '') . '" href="' . e(biz_list_url($filters, $area, ['sort' => $key, 'dir' => $dir, 'page' => null])) . '">' . e($label) . $arrow . '</a>';
+}
+
+function relevance_badge(string $r): string
+{
+    return '<span class="badge rel-' . e($r) . '">' . e(Status::RELEVANCE[$r] ?? $r) . '</span>';
+}
+
+function job_badge(string $s): string
+{
+    return '<span class="badge job-' . e($s) . '">' . e(Status::JOB[$s] ?? $s) . '</span>';
+}
+
+function duration(?string $from, ?string $to): string
+{
+    if (!$from || !$to) {
+        return '—';
+    }
+    $sec = max(0, (int) strtotime($to) - (int) strtotime($from));
+    return $sec < 60 ? $sec . ' сек' : intdiv($sec, 60) . ' мин ' . ($sec % 60) . ' сек';
 }

@@ -80,10 +80,21 @@ generation happens by itself.
       manual create/edit with duplicate warning, history & notes, „Пусната оферта“ with follow-ups,
       Kanban (drag & drop + select), settings (outreach template, password, backups), installer,
       migrations with rollback, backup/restore, tests, CI
-- [ ] Deploy Phase 1 to crm.testvane.org (needs owner approval: subdomain, database, password page, deploy)
-- [ ] Phase 2 – scan jobs table + cron runner; OSM Overpass adapter; Google Places adapter
-      (owner creates API key); OSM import of neighborhood boundaries (upgrades `geo_confidence`);
-      provenance table (`business_facts`); dedup scoring + review queue; start with Лозенец
+- [x] Deploy Phase 1 to crm.testvane.org (subdomain, MariaDB `martest_barberlead`, nightly backup cron)
+- [x] Phase 2 – discovery:
+  - `jobs` table with atomic claiming (`lock_token`/`locked_until`), one active scan per area (unique
+    generated column), slices of ≤40 s, back-off retries (1/5/15 min, 3 attempts), cancel, schedules
+  - runs from the open area page (JS calls `/jobs/{id}/run`) **and** from cron (`bin/worker.php`, every 5 min)
+  - sources: OpenStreetMap Overpass (free) + Google Places Text Search (optional key, monthly request cap,
+    usage counter; Google fields other than the place id are purged after 30 days)
+  - OSM boundary import: Sofia districts (admin_level 9) and neighborhoods (place=suburb/quarter/
+    neighbourhood) → areas get polygons, wrong district parents are corrected, unknown neighborhoods added
+  - point-in-polygon area assignment; a neighborhood without its own OSM polygon scans its district and says so
+  - relevance classification (barbershop / unclear hairdresser / women-only or beauty → hidden by default)
+  - identity resolution: source id → phone → own website domain → Instagram → name similarity + distance;
+    ≥0.85 attach, 0.5–0.85 new record + duplicate review queue, never silent merges; manual merge/dismiss
+  - provenance: `business_sources` keeps each source's values + last seen; conflicts logged in history
+  - `website_status = none` only when OSM **and** Google answered and neither listed a website
 - [ ] Phase 3 – website finder/classifier (light checks on hosting), lead scoring with explanations,
       manual overrides; screenshots via Claude sessions
 - [ ] Phase 4 – design brief from verified facts; Claude Code demo-generation workflow; static demo
@@ -92,7 +103,17 @@ generation happens by itself.
       (noindex, unguessable slug), revisions and version history, rollback
 - [ ] Phase 6 – nightly backup cron, restore drill, monitoring page, optional 2FA (TOTP)
 
-## 7. Known limitations of Phase 1
+## 7. Known limitations
+
+Phase 2:
+- OSM coverage of Sofia barbershops is incomplete; Google Places fills most gaps but needs the owner's key.
+- Google Places terms restrict storing Places content. The CRM keeps the place id, refreshes data on rescans
+  and purges raw Google data after 30 days; values copied into the business record (phone, website) are what
+  the owner works with day to day — review this against Google's current terms if the CRM is ever shared.
+- “Завършено” (done) means the configured sources were processed, not that every real business was found.
+- Sofia neighborhoods that OSM does not map as polygons are assigned to their district only.
+
+Phase 1:
 
 - No automatic discovery yet; businesses are added manually.
 - Neighborhood → district mapping is seeded from general knowledge and marked `approx` until the OSM import.

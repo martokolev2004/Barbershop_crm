@@ -52,6 +52,21 @@ final class Status
         'good' => 'Добър сайт',
     ];
 
+    public const RELEVANCE = [
+        'high' => 'Бръснарница / мъжки',
+        'medium' => 'Фризьор (неясно)',
+        'low' => 'Неподходящ',
+    ];
+
+    public const JOB = [
+        'queued' => 'На опашка',
+        'running' => 'Тече',
+        'done' => 'Завършено',
+        'partial' => 'Частично',
+        'failed' => 'Неуспешно',
+        'cancelled' => 'Спряно',
+    ];
+
     public static function label(string $status): string
     {
         return self::LABELS[$status] ?? $status;

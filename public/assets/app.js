@@ -108,3 +108,34 @@
     });
   });
 })();
+
+/* Live scan progress: keeps the job moving in ~20 s slices while the page is open (cron continues otherwise). */
+(function () {
+  'use strict';
+  var box = document.getElementById('job-progress');
+  if (!box) return;
+  var id = parseInt(box.getAttribute('data-job'), 10);
+  if (!id) return;
+  var csrf = (document.querySelector('meta[name="csrf"]') || {}).content || '';
+  var labels = { queued: 'На опашка', running: 'Тече', done: 'Завършено', partial: 'Частично', failed: 'Неуспешно', cancelled: 'Спряно' };
+  var stopped = false;
+  function show(j) {
+    document.getElementById('job-status').textContent = (labels[j.status] || j.status) + (j.progress ? ': ' + j.progress : '');
+    document.getElementById('job-counts').textContent = j.found + ' намерени · ' + j.new + ' нови · ' + j.updated + ' обновени · ' + j.review + ' за преглед';
+    document.getElementById('job-log').textContent = [j.log || '', j.error || ''].filter(Boolean).join('\n');
+  }
+  function tick() {
+    if (stopped) return;
+    fetch('/jobs/' + id + '/run', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ _csrf: csrf })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.error && !j.status) { document.getElementById('job-status').textContent = j.error; return; }
+      show(j);
+      if (j.final) { stopped = true; setTimeout(function () { var u = new URL(location.href); u.searchParams.delete('job'); location.href = u.toString(); }, 1500); return; }
+      setTimeout(tick, j.run_after ? 15000 : 1500);
+    }).catch(function () { setTimeout(tick, 10000); });
+  }
+  tick();
+})();

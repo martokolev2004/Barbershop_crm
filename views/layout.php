@@ -5,6 +5,8 @@ $nav = [
     '/businesses' => 'Бизнеси',
     '/kanban' => 'Kanban',
     '/offers' => 'Оферти',
+    '/jobs' => 'Сканирания',
+    '/duplicates' => 'Дубликати',
     '/settings' => 'Настройки',
 ];
 $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
@@ -17,8 +19,8 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 <meta name="robots" content="noindex, nofollow">
 <meta name="csrf" content="<?= e($csrf) ?>">
 <title><?= e($title ?? 'BarberLead') ?> · BarberLead</title>
-<link rel="stylesheet" href="/assets/app.css?v=2">
-<script src="/assets/app.js?v=2" defer></script>
+<link rel="stylesheet" href="/assets/app.css?v=3">
+<script src="/assets/app.js?v=3" defer></script>
 </head>
 <body>
 <?php if ($user === null): ?>
@@ -32,6 +34,7 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
       <?php foreach ($nav as $href => $label): ?>
         <a href="<?= e($href) ?>" class="<?= nav_active($path, $href) ? 'on' : '' ?>"><?= e($label) ?>
           <?php if ($href === '/offers' && $dueFollowUps > 0): ?><span class="pill" title="Напомняния за днес"><?= (int) $dueFollowUps ?></span><?php endif; ?>
+          <?php if ($href === '/duplicates' && $openDuplicates > 0): ?><span class="pill" title="За преглед"><?= (int) $openDuplicates ?></span><?php endif; ?>
         </a>
       <?php endforeach; ?>
     </nav>
@@ -46,6 +49,10 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
     </div>
   </aside>
   <main class="main">
+    <?php if ($pendingMigrations > 0 && $path !== '/settings'): ?>
+      <div class="banner"><span>Има нова версия: базата трябва да се обнови.</span>
+        <form method="post" action="/settings/migrate"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><button class="btn btn-sm">Обнови базата</button></form></div>
+    <?php endif; ?>
     <?php foreach ($flashes ?? [] as [$type, $msg]): ?>
       <div class="flash <?= e($type) ?>" role="status"><?= e($msg) ?></div>
     <?php endforeach; ?>

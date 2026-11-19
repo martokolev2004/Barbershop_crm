@@ -6,6 +6,7 @@
         </testsuite>
         <testsuite name="integration">
             <directory>tests/Integration</directory>
+            <directory>tests/Discovery</directory>
         </testsuite>
     </testsuites>
     <php>
