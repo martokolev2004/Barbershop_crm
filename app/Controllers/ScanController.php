@@ -27,9 +27,16 @@ final class ScanController
         if ($area === null || $area['type'] === 'country') {
             return $this->app->error(404, 'Няма такъв квартал.');
         }
-        $sources = ['osm'];
+        $sources = [];
+        if ($req->str('osm') === '1') {
+            $sources[] = 'osm';
+        }
         if ($req->str('google') === '1' && $this->app->settings->get('google_api_key')) {
             $sources[] = 'google';
+        }
+        if (!$sources) {
+            $this->app->session->flash('err', 'Избери поне един източник.');
+            return Response::redirect(url('/businesses', ['area' => $areaId]));
         }
         [$jobId, $created] = $this->runner()->queueScan($areaId, $sources, $this->app->actor());
         $this->app->audit->record($this->app->actor(), 'scan_queued', 'area', $areaId, ['job' => $jobId, 'sources' => $sources], $req->ip);

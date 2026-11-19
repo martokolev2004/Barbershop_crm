@@ -60,6 +60,14 @@ final class Importer
         return ['action' => 'new', 'business_id' => $id];
     }
 
+    /** Attaches a source record to a known business (owner-triggered enrichment). */
+    public function attach(int $businessId, Candidate $c, string $reason): void
+    {
+        $this->saveSource($businessId, $c, $reason, null);
+        $this->fillAndCompare($businessId, $c, true);
+        $this->events->add($businessId, 'source', 'Допълнен от ' . self::sourceLabel($c->source) . " ($reason)", 'auto');
+    }
+
     /** @return array{0: ?int, 1: float, 2: string} */
     public function bestMatch(Candidate $c): array
     {
@@ -135,9 +143,18 @@ final class Importer
             }
             $why[] = 'на ' . round($d) . ' м';
         }
-        // Name + location alone must be really convincing to merge automatically.
-        if ($phone === null && $domain === null && $insta === null && !($sim >= 0.85)) {
-            $score = min($score, 0.8);
+        // Name + location alone must be really convincing to merge automatically:
+        // (almost) the same name within a few dozen metres is the same shop seen by two sources.
+        $d = ($c->lat !== null && $b['lat'] !== null) ? Geo::distance($c->lat, $c->lng ?? 0.0, (float) $b['lat'], (float) $b['lng']) : null;
+        $strongIdentity = ($phone !== null && $phone === $b['phone_normalized']) || ($domain !== null && $domain === $b['website_domain'])
+            || ($insta !== null && $insta === self::handle($b['instagram_url']));
+        $phonesDiffer = $phone !== null && $b['phone_normalized'] !== null && $phone !== $b['phone_normalized'];
+        if (!$strongIdentity) {
+            if (!$phonesDiffer && $d !== null && (($sim >= 0.9 && $d < 60) || ($sim >= 0.8 && $d < 25))) {
+                $score = max($score, 0.9);
+            } else {
+                $score = min($score, 0.8);
+            }
         }
         return [max(0.0, min(1.0, $score)), implode(', ', $why)];
     }

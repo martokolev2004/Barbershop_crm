@@ -71,6 +71,9 @@ class OverpassSource
             if ($name === '') {
                 continue; // unnamed shop nodes cannot be contacted or recognised
             }
+            if (!self::isHairPlace($t)) {
+                continue; // e.g. a pub or a cosmetics shop that only has "barber" in its name
+            }
             $lat = $el['lat'] ?? $el['center']['lat'] ?? null;
             $lng = $el['lon'] ?? $el['center']['lon'] ?? null;
             $street = trim(($t['addr:street'] ?? '') . ' ' . ($t['addr:housenumber'] ?? ''));
@@ -100,6 +103,28 @@ class OverpassSource
             );
         }
         return $out;
+    }
+
+    /**
+     * Keeps hairdressers/barbers. An element found only by its name must not be tagged as something else
+     * (shop=cosmetics, amenity=bar, office=...); closed/disused places are dropped.
+     * @param array<string,mixed> $t
+     */
+    public static function isHairPlace(array $t): bool
+    {
+        if (($t['opening_hours'] ?? '') === 'off' || isset($t['disused:shop']) || isset($t['was:shop'])) {
+            return false;
+        }
+        $shop = $t['shop'] ?? null;
+        if (in_array($shop, ['hairdresser', 'barber'], true) || ($t['craft'] ?? null) === 'hairdresser') {
+            return true;
+        }
+        foreach (['shop', 'amenity', 'craft', 'office', 'leisure', 'tourism', 'healthcare'] as $k) {
+            if (isset($t[$k])) {
+                return false;
+            }
+        }
+        return true; // untagged point named "… barber …": keep, relevance decides
     }
 
     /** @param array<string,mixed> $tags @param list<string> $keys */

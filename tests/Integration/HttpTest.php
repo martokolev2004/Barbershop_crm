@@ -142,7 +142,9 @@ final class HttpTest extends TestCase
         foreach (['/jobs', '/duplicates'] as $path) {
             $this->assertSame(200, $this->req('GET', $path)->status, "GET $path");
         }
-        $r = $this->req('POST', "/areas/$lozenets/scan", ['google' => '1']);
+        $this->req('POST', "/areas/$lozenets/scan", []);
+        $this->assertSame(0, (int) $this->db->query('SELECT COUNT(*) FROM jobs')->fetchColumn(), 'no source chosen → nothing queued');
+        $r = $this->req('POST', "/areas/$lozenets/scan", ['osm' => '1', 'google' => '1']);
         $this->assertSame(303, $r->status);
         $job = $this->db->query('SELECT * FROM jobs')->fetch();
         $this->assertSame(['sources' => ['osm']], json_decode($job['params'], true), 'Google is not used without a key');
@@ -152,7 +154,7 @@ final class HttpTest extends TestCase
         $this->assertSame('queued', $status['status']);
         $this->assertFalse($status['final']);
         // second click while active → no new job
-        $this->req('POST', "/areas/$lozenets/scan");
+        $this->req('POST', "/areas/$lozenets/scan", ['osm' => '1']);
         $this->assertSame(1, (int) $this->db->query('SELECT COUNT(*) FROM jobs')->fetchColumn());
         $this->req('POST', '/jobs/' . $job['id'] . '/cancel');
         $this->assertSame('cancelled', $this->db->query('SELECT status FROM jobs')->fetchColumn());

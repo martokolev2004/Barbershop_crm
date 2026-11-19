@@ -64,7 +64,7 @@ use BarberLead\Status;
       <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
       <p class="muted small">Търси бръснарници и фризьори в границите на „<?= e($area['name_bg']) ?>“. Съществуващите записи се обновяват, не се дублират.</p>
       <div class="row">
-        <label class="check"><input type="checkbox" checked disabled> OpenStreetMap</label>
+        <label class="check"><input type="checkbox" name="osm" value="1"<?= $hasGoogleKey ? '' : ' checked' ?>> OpenStreetMap <span class="muted small">(безплатно, но без телефони)</span></label>
         <label class="check"><input type="checkbox" name="google" value="1"<?= $hasGoogleKey ? ' checked' : ' disabled' ?>> Google Places<?= $hasGoogleKey ? '' : ' <span class="muted small">(няма ключ — <a href="/settings#google">Настройки</a>)</span>' ?></label>
       </div>
       <div class="row"><button class="btn btn-k"<?= $activeJob ? ' disabled' : '' ?>>Сканирай квартала</button></div>

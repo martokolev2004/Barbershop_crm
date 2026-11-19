@@ -258,4 +258,24 @@ final class ScanTest extends TestCase
         $this->assertSame('done', $job['status']);
         $this->assertSame(3, (int) $job['new_count']);
     }
+
+    public function testOsmEntryWithoutPhoneMergesWithGoogleByNameAndDistance(): void
+    {
+        $this->db->exec("INSERT INTO businesses (id, name, name_normalized, lat, lng) VALUES (700, 'FIXTURE Kings Barbershop', 'fixture kings', 42.6800, 23.3200)");
+        $this->db->exec("INSERT INTO business_sources (business_id, source, source_id) VALUES (700, 'osm', 'node/700')");
+        $importer = new \BarberLead\Discovery\Importer($this->db, new EventRepository($this->db));
+        $r = $importer->import(new \BarberLead\Discovery\Candidate('google', 'gK', 'Fixture Kings Barber Shop', 42.68010, 23.32005, phone: '0888 700 700', website: 'https://kings-fixture.example', rating: 4.8, reviewsCount: 99), null, 'test');
+        $this->assertSame(['updated', 700], [$r['action'], $r['business_id']]);
+        $b = $this->db->query('SELECT phone_normalized, website_domain, rating FROM businesses WHERE id = 700')->fetch();
+        $this->assertSame(['+359888700700', 'kings-fixture.example', '4.8'], [$b['phone_normalized'], $b['website_domain'], (string) $b['rating']]);
+    }
+
+    public function testOsmFilterDropsNonHairPlaces(): void
+    {
+        $this->assertFalse(\BarberLead\Discovery\OverpassSource::isHairPlace(['name' => 'The Barber Pub', 'amenity' => 'bar']));
+        $this->assertFalse(\BarberLead\Discovery\OverpassSource::isHairPlace(['name' => 'Barber Supplies', 'shop' => 'cosmetics']));
+        $this->assertFalse(\BarberLead\Discovery\OverpassSource::isHairPlace(['name' => 'X', 'shop' => 'hairdresser', 'opening_hours' => 'off']));
+        $this->assertTrue(\BarberLead\Discovery\OverpassSource::isHairPlace(['name' => 'X', 'shop' => 'hairdresser']));
+        $this->assertTrue(\BarberLead\Discovery\OverpassSource::isHairPlace(['name' => 'Barber Ivo']));
+    }
 }
