@@ -8,7 +8,8 @@ use BarberLead\Status;
 </div>
 
 <div class="stats">
-  <a class="stat" href="/businesses"><strong><?= $stats['total'] ?></strong><span>бизнеса в базата</span></a>
+  <a class="stat" href="/businesses"><strong><?= $stats['total'] ?></strong><span>подходящи бизнеса в базата</span></a>
+  <a class="stat" href="<?= e(url('/businesses', ['sort' => 'created'])) ?>"><strong><?= $stats['new_recent'] ?></strong><span>нови за последните 15 дни</span></a>
   <a class="stat" href="<?= e(url('/businesses', ['web' => 'none'])) ?>"><strong><?= $stats['no_website'] ?></strong><span>без открит сайт</span></a>
   <a class="stat" href="<?= e(url('/businesses', ['web' => 'weak'])) ?>"><strong><?= $stats['weak_website'] ?></strong><span>със слаб сайт</span></a>
   <a class="stat" href="<?= e(url('/businesses', ['status' => 'qualified'])) ?>"><strong><?= $stats['qualified'] ?></strong><span>квалифицирани / с демо</span></a>
@@ -72,7 +73,7 @@ use BarberLead\Status;
 
     <section class="card">
       <h2>Автоматично търсене</h2>
-      <p class="muted small">Сканирането на квартали (OpenStreetMap и Google Places), проверката на сайтове и генерирането на демота идват в следващите фази. Засега бизнесите се добавят ръчно.</p>
+      <p class="muted small">Районите на София се сканират автоматично (настройва се от страницата на града). Резултатите и грешките са в <a href="/jobs">Сканирания</a>.</p>
     </section>
   </div>
 </div>

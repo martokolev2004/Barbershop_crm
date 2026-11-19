@@ -84,6 +84,7 @@ final class App
         $r->post('/settings/migrate', 'settings.migrate');
         $r->post('/areas/{id}/scan', 'scan.start');
         $r->post('/areas/{id}/schedule', 'scan.schedule');
+        $r->post('/areas/{id}/schedule-all', 'scan.scheduleAll');
         $r->get('/jobs', 'jobs');
         $r->get('/jobs/{id}', 'job.status');
         $r->post('/jobs/{id}/run', 'job.run');
@@ -122,6 +123,7 @@ final class App
             'settings.migrate' => (new SettingsController($this))->migrate($req),
             'scan.start' => (new ScanController($this))->start($req, $id),
             'scan.schedule' => (new ScanController($this))->schedule($req, $id),
+            'scan.scheduleAll' => (new ScanController($this))->scheduleAll($req, $id),
             'jobs' => (new ScanController($this))->index($req),
             'job.status' => (new ScanController($this))->status($req, $id),
             'job.run' => (new ScanController($this))->run($req, $id),

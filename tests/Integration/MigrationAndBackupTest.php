@@ -31,6 +31,9 @@ final class MigrationAndBackupTest extends TestCase
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
         $this->assertSame([], $m->pending());
+        $sched = $db->query("SELECT COUNT(*) c, MIN(interval_days) i FROM scan_schedules WHERE enabled = 1")->fetch();
+        $this->assertSame(24, (int) $sched['c'], 'every Sofia district is scheduled');
+        $this->assertSame(15, (int) $sched['i']);
 
         $districts = $db->query("SELECT COUNT(*) FROM areas a JOIN areas c ON c.id = a.parent_id WHERE c.slug = 'sofia' AND a.type = 'district'")->fetchColumn();
         $this->assertSame(24, (int) $districts, 'Sofia has 24 administrative districts');
@@ -57,6 +60,7 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
+        $this->assertSame('0006_schedule_sofia', $m->rollback());
         // 0005 drops tables: refused without force
         try {
             $m->rollback();
@@ -76,6 +80,7 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
+        $m->rollback(); // 0006 schedules
         $m->rollback(true); // 0005 discovery tables
         $m->rollback(); // removes Prime import
         $m->rollback(); // settings

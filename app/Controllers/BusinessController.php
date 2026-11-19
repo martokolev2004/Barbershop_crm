@@ -49,6 +49,7 @@ final class BusinessController
             'activeJob' => $req->int('job') ?: ($area ? $this->activeJob((int) $area['id']) : 0),
             'schedule' => $area ? $this->schedule((int) $area['id']) : null,
             'hasGoogleKey' => (bool) $this->app->settings->get('google_api_key'),
+            'cityPlan' => $area && $area['type'] === 'city' ? $this->cityPlan((int) $area['id']) : null,
         ]);
     }
 
@@ -58,6 +59,27 @@ final class BusinessController
         $stmt = $this->app->db->prepare("SELECT * FROM jobs WHERE type = 'scan' AND area_id = ? ORDER BY id DESC LIMIT 10");
         $stmt->execute([$areaId]);
         return $stmt->fetchAll();
+    }
+
+    /** @return array<string,mixed> scan plan of all districts of a city */
+    private function cityPlan(int $cityId): array
+    {
+        $stmt = $this->app->db->prepare(
+            "SELECT d.id, d.name_bg, s.enabled, s.interval_days, s.next_run_at,
+                    (SELECT j.status FROM jobs j WHERE j.area_id = d.id ORDER BY j.id DESC LIMIT 1) AS last_status,
+                    (SELECT j.finished_at FROM jobs j WHERE j.area_id = d.id ORDER BY j.id DESC LIMIT 1) AS last_finished,
+                    (SELECT j.found_count FROM jobs j WHERE j.area_id = d.id ORDER BY j.id DESC LIMIT 1) AS last_found
+             FROM areas d LEFT JOIN scan_schedules s ON s.area_id = d.id
+             WHERE d.parent_id = ? AND d.type = 'district' ORDER BY d.sort_order, d.name_bg"
+        );
+        $stmt->execute([$cityId]);
+        $rows = $stmt->fetchAll();
+        $enabled = array_filter($rows, fn ($r) => (int) $r['enabled'] === 1);
+        return [
+            'districts' => $rows,
+            'enabled' => count($enabled),
+            'interval' => $enabled ? (int) reset($enabled)['interval_days'] : 15,
+        ];
     }
 
     private function activeJob(int $areaId): int

@@ -158,7 +158,14 @@ final class HttpTest extends TestCase
         $this->assertSame('cancelled', $this->db->query('SELECT status FROM jobs')->fetchColumn());
 
         $this->req('POST', "/areas/$lozenets/schedule", ['enabled' => '1', 'interval_days' => '14']);
-        $this->assertSame(14, (int) $this->db->query('SELECT interval_days FROM scan_schedules')->fetchColumn());
+        $this->assertSame(14, (int) $this->db->query("SELECT interval_days FROM scan_schedules WHERE area_id = $lozenets")->fetchColumn());
+
+        $sofia = (int) $this->db->query("SELECT id FROM areas WHERE slug = 'sofia'")->fetchColumn();
+        $this->assertStringContainsString('24 от 24 района са включени', $this->req('GET', '/businesses', [], ['area' => (string) $sofia])->body);
+        $this->req('POST', "/areas/$sofia/schedule-all", ['interval_days' => '15']);
+        $this->assertSame(0, (int) $this->db->query('SELECT COUNT(*) FROM scan_schedules WHERE enabled = 1')->fetchColumn());
+        $this->req('POST', "/areas/$sofia/schedule-all", ['enabled' => '1', 'interval_days' => '20']);
+        $this->assertSame(24, (int) $this->db->query('SELECT COUNT(*) FROM scan_schedules WHERE enabled = 1 AND interval_days = 20')->fetchColumn());
     }
 
     public function testGoogleKeyIsStoredButNeverShown(): void

@@ -101,6 +101,43 @@ final class ScanController
         return Response::redirect(url('/businesses', ['area' => $areaId]));
     }
 
+    /** Turns automatic scanning on/off for every district of a city (districts cover their neighborhoods). */
+    public function scheduleAll(Request $req, int $cityId): Response
+    {
+        $city = $this->app->areas->find($cityId);
+        if ($city === null || $city['type'] !== 'city') {
+            return $this->app->error(404, 'Няма такъв град.');
+        }
+        $days = $req->int('interval_days', 15);
+        $districts = $this->app->db->prepare("SELECT id FROM areas WHERE parent_id = ? AND type = 'district' ORDER BY sort_order, id");
+        $districts->execute([$cityId]);
+        $ids = array_map('intval', $districts->fetchAll(\PDO::FETCH_COLUMN));
+        if (!$ids) {
+            $this->app->session->flash('err', 'Този град още няма районите си. Те се зареждат от OpenStreetMap при първото сканиране.');
+            return Response::redirect(url('/businesses', ['area' => $cityId]));
+        }
+        if ($req->str('enabled') === '1') {
+            if ($days < 7 || $days > 365) {
+                $this->app->session->flash('err', 'Интервалът трябва да е между 7 и 365 дни.');
+                return Response::redirect(url('/businesses', ['area' => $cityId]));
+            }
+            $stmt = $this->app->db->prepare(
+                'INSERT INTO scan_schedules (area_id, interval_days, next_run_at, enabled) VALUES (?, ?, NOW() + INTERVAL ? MINUTE, 1)
+                 ON DUPLICATE KEY UPDATE interval_days = VALUES(interval_days), enabled = 1,
+                    next_run_at = IF(enabled = 1, LEAST(next_run_at, NOW() + INTERVAL VALUES(interval_days) DAY), VALUES(next_run_at))'
+            );
+            foreach ($ids as $i => $id) {
+                $stmt->execute([$id, $days, $i * 5]);
+            }
+            $this->app->session->flash('ok', count($ids) . " района ще се сканират автоматично на всеки $days дни.");
+        } else {
+            $this->app->db->exec('UPDATE scan_schedules SET enabled = 0 WHERE area_id IN (' . implode(',', $ids) . ')');
+            $this->app->session->flash('ok', 'Автоматичното сканиране на града е изключено.');
+        }
+        $this->app->audit->record($this->app->actor(), 'schedule_city', 'area', $cityId, ['days' => $days, 'enabled' => $req->str('enabled')], $req->ip);
+        return Response::redirect(url('/businesses', ['area' => $cityId]));
+    }
+
     /** @param array<string,mixed> $job @return array<string,mixed> */
     public function jobJson(array $job): array
     {

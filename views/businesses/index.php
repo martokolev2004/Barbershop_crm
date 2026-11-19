@@ -32,6 +32,31 @@ use BarberLead\Status;
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'offer_sent', 'page' => null])) ?>"><strong><?= $areaStats['offer_sent'] ?></strong><span>пуснати оферти</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['rel' => 'low', 'page' => null])) ?>"><strong><?= $areaStats['low_relevance'] ?></strong><span>неподходящи (скрити)</span></a>
 </div>
+<?php if ($cityPlan !== null): ?>
+<section class="card">
+  <div class="row row-between"><h2>Автоматично сканиране на целия град</h2>
+    <span class="small muted"><?= $cityPlan['enabled'] ?> от <?= count($cityPlan['districts']) ?> района са включени</span></div>
+  <p class="muted small">Всеки район се сканира с всичките си квартали; новите бизнеси се добавят, а съществуващите се обновяват. Районите се пускат един след друг, за да не се претоварват източниците.</p>
+  <form method="post" action="/areas/<?= (int) $area['id'] ?>/schedule-all" class="row small">
+    <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+    <label class="check"><input type="checkbox" name="enabled" value="1"<?= $cityPlan['enabled'] ? ' checked' : '' ?>> Сканирай всички райони на всеки</label>
+    <input type="number" name="interval_days" min="7" max="365" value="<?= (int) $cityPlan['interval'] ?>" class="w-num"> дни
+    <button class="btn btn-sm">Запиши</button>
+  </form>
+  <?php if ($cityPlan['districts']): ?>
+  <table class="list"><thead><tr><th>Район</th><th>Последно сканиране</th><th>Следващо</th></tr></thead><tbody>
+    <?php foreach ($cityPlan['districts'] as $d): ?>
+      <tr>
+        <td><a href="<?= e(url('/businesses', ['area' => $d['id']])) ?>"><?= e($d['name_bg']) ?></a></td>
+        <td class="small"><?= $d['last_status'] ? job_badge($d['last_status']) . ' ' . fmt_date($d['last_finished'], true) . ' · ' . (int) $d['last_found'] . ' намерени' : '<span class="muted">още не</span>' ?></td>
+        <td class="small nowrap"><?= (int) $d['enabled'] === 1 ? fmt_date($d['next_run_at'], true) : '<span class="muted">изключено</span>' ?></td>
+      </tr>
+    <?php endforeach; ?>
+  </tbody></table>
+  <?php endif; ?>
+</section>
+<p></p>
+<?php else: ?>
 <div class="scan-panel">
   <section class="card">
     <h2>Сканиране</h2>
@@ -76,6 +101,7 @@ use BarberLead\Status;
     <?php endif; ?>
   </section>
 </div>
+<?php endif; ?>
 <?php endif; ?>
 
 <form class="filters" method="get" action="/businesses" role="search">

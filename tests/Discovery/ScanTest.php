@@ -213,10 +213,12 @@ final class ScanTest extends TestCase
 
     public function testScheduleQueuesDueScan(): void
     {
-        $lozenets = $this->areaId('lozenets', 'district');
-        $this->db->exec("INSERT INTO scan_schedules (area_id, interval_days, next_run_at) VALUES ($lozenets, 30, NOW() - INTERVAL 1 MINUTE)");
+        // migration 0006 staggers Sofia's districts 5 minutes apart: only Лозенец (sort 0) is due right away
         $this->assertSame(1, $this->runner()->enqueueDueSchedules());
-        $this->assertSame(0, $this->runner()->enqueueDueSchedules(), 'next run moved 30 days ahead');
+        $this->assertSame(0, $this->runner()->enqueueDueSchedules(), 'next run moved 15 days ahead');
+        $lozenets = $this->areaId('lozenets', 'district');
+        $this->assertSame(1, $this->countRows("SELECT COUNT(*) FROM jobs WHERE area_id = $lozenets"));
+        $this->assertSame(1, $this->countRows("SELECT COUNT(*) FROM scan_schedules WHERE area_id = $lozenets AND next_run_at > NOW() + INTERVAL 14 DAY"));
         $this->assertSame(1, $this->countRows("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND requested_by = 'график'"));
     }
 

@@ -218,7 +218,8 @@ final class BusinessRepository
                     COALESCE(SUM(status IN ('qualified','demo_generating','demo_awaiting_approval','demo_approved','ready_for_outreach')), 0) AS qualified,
                     COALESCE(SUM(status = 'offer_sent'), 0) AS offer_sent,
                     COALESCE(SUM(status IN ('replied','negotiation')), 0) AS talking,
-                    COALESCE(SUM(status = 'won'), 0) AS won
+                    COALESCE(SUM(status = 'won'), 0) AS won,
+                    COALESCE(SUM(created_at >= NOW() - INTERVAL 15 DAY), 0) AS new_recent
                     , (SELECT COUNT(*) FROM businesses WHERE " . str_replace("relevance IN ('high','medium')", "relevance = 'low'", $where) . ") AS low_relevance
              FROM businesses WHERE $where"
         )->fetch();
