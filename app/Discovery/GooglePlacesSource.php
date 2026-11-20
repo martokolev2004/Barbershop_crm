@@ -65,6 +65,34 @@ class GooglePlacesSource
     }
 
     /**
+     * Free-text lookup of one business by name ("Prime Barbershop Лозенец"), anywhere in Bulgaria.
+     * Used by the owner's manual search; counts as one request.
+     */
+    public function findByName(string $query): SourceResult
+    {
+        $resp = $this->http->post(self::ENDPOINT, (string) json_encode([
+            'textQuery' => $query, 'languageCode' => 'bg', 'regionCode' => 'BG', 'pageSize' => 10,
+        ]), [
+            'Content-Type' => 'application/json',
+            'X-Goog-Api-Key' => $this->apiKey,
+            'X-Goog-FieldMask' => self::FIELDS,
+        ], 30);
+        if ($resp['error'] !== null || $resp['status'] !== 200) {
+            $msg = $resp['error'] ?? 'HTTP ' . $resp['status'];
+            $json = json_decode($resp['body'], true);
+            if (is_array($json) && isset($json['error']['message']) && is_string($json['error']['message'])) {
+                $msg .= ': ' . mb_substr($json['error']['message'], 0, 200);
+            }
+            return new SourceResult([], 'Google Places: ' . $msg, HttpClient::isTransient($resp['status'], $resp['error']), 1);
+        }
+        $data = json_decode($resp['body'], true);
+        if (!is_array($data)) {
+            return new SourceResult([], 'Google Places: неразбираем отговор', true, 1);
+        }
+        return new SourceResult(self::parse(is_array($data['places'] ?? null) ? $data['places'] : []), null, false, 1);
+    }
+
+    /**
      * Rectangle Google uses for a place name such as "Младост, София" (fallback when OSM has no boundary).
      * @return array{0: array{south:float,west:float,north:float,east:float}|null, 1: ?string, 2: bool} [bbox, error, transient]
      */

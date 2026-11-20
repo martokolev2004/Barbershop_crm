@@ -9,6 +9,8 @@ use BarberLead\Auth;
 use BarberLead\Http\Request;
 use BarberLead\Http\Response;
 use BarberLead\Http\Session;
+use BarberLead\Tests\FakeHttp;
+use BarberLead\Tests\Fixtures;
 use BarberLead\Tests\TestDatabase;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -278,5 +280,44 @@ final class HttpTest extends TestCase
         $today = $this->req('GET', '/')->body;
         $this->assertStringContainsString('Да пиша пак днес', $today);
         $this->assertStringContainsString('FIXTURE Insta Only', $today, 'new barbershop of this week');
+    }
+
+    public function testSearchOursFirstThenGoogleAndAdd(): void
+    {
+        $this->login();
+        $this->db->exec("INSERT INTO businesses (id, name, name_normalized, relevance, status, phone, phone_normalized) VALUES
+            (980, 'FIXTURE Barber One', 'fixture barber one', 'high', 'rejected', '0888 100 001', '+359888100001')");
+        $r = $this->req('GET', '/search', [], ['q' => 'fixture barber']);
+        $this->assertSame(200, $r->status);
+        $this->assertStringContainsString('FIXTURE Barber One', $r->body, 'rejected ones are found too');
+        $this->assertStringContainsString('Добави Google ключ', $r->body);
+
+        $this->app->settings->set('google_api_key', 'FIXTURE-KEY-0123456789abcdefghijklmnop');
+        $http = new FakeHttp();
+        $http->push('places.googleapis.com', 200, Fixtures::googleJson());
+        $this->app->http = $http;
+        $r = $this->req('POST', '/search/google', ['q' => 'fixture barber']);
+        $this->assertSame(303, $r->status);
+        $this->assertCount(1, $http->calls);
+        $this->assertStringContainsString('"textQuery":"fixture barber"', $http->calls[0]['body']);
+        $this->assertSame(1, (int) $this->app->settings->get('google_usage_' . date('Ym')), 'counted against the monthly cap');
+
+        $page = $this->req('GET', '/search', [], ['q' => 'fixture barber'])->body;
+        $this->assertStringContainsString('Вече го имаме', $page, 'same phone → already ours');
+        $this->assertStringContainsString('FIXTURE Gents Club', $page);
+        $this->assertSame(2, substr_count($page, 'name="place"'), 'two can be added');
+
+        $r = $this->req('POST', '/search/add', ['place' => 'gFIX2']);
+        $this->assertSame(303, $r->status);
+        $id = (int) $this->db->query("SELECT id FROM businesses WHERE name = 'FIXTURE Gents Club'")->fetchColumn();
+        $this->assertGreaterThan(0, $id);
+        $this->assertSame("/businesses/$id", $r->headers['Location']);
+        $this->assertSame(1, (int) $this->db->query("SELECT COUNT(*) FROM business_sources WHERE source = 'google' AND source_id = 'gFIX2'")->fetchColumn());
+        $this->assertSame(303, $this->req('POST', '/search/add', ['place' => 'not-from-google'])->status);
+        $this->assertSame(1, (int) $this->db->query("SELECT COUNT(*) FROM businesses WHERE name = 'FIXTURE Gents Club'")->fetchColumn());
+
+        $this->app->settings->set('google_monthly_cap', '1');
+        $this->req('POST', '/search/google', ['q' => 'other']);
+        $this->assertCount(1, $http->calls, 'cap reached → no request');
     }
 }

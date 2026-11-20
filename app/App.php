@@ -11,6 +11,8 @@ use BarberLead\Controllers\DuplicateController;
 use BarberLead\Controllers\ScanController;
 use BarberLead\Controllers\KanbanController;
 use BarberLead\Controllers\OfferController;
+use BarberLead\Controllers\SearchController;
+use BarberLead\Discovery\HttpClient;
 use BarberLead\Controllers\SettingsController;
 use BarberLead\Http\Request;
 use BarberLead\Http\Response;
@@ -36,6 +38,8 @@ final class App
     public readonly DemoRepository $demos;
     public readonly SettingsRepository $settings;
     public readonly AuditLog $audit;
+    /** Outbound HTTP (replaced by a fake in tests). */
+    public HttpClient $http;
     private Router $router;
 
     /** Paths reachable without login. */
@@ -53,6 +57,7 @@ final class App
         $this->demos = new DemoRepository($db, $this->events);
         $this->settings = new SettingsRepository($db);
         $this->audit = new AuditLog($db);
+        $this->http = new HttpClient();
         $this->router = $this->routes();
     }
 
@@ -92,6 +97,9 @@ final class App
         $r->get('/jobs/{id}', 'job.status');
         $r->post('/jobs/{id}/run', 'job.run');
         $r->post('/jobs/{id}/cancel', 'job.cancel');
+        $r->get('/search', 'search');
+        $r->post('/search/google', 'search.google');
+        $r->post('/search/add', 'search.add');
         $r->get('/duplicates', 'dup.index');
         $r->post('/duplicates/{id}/merge', 'dup.merge');
         $r->post('/duplicates/{id}/dismiss', 'dup.dismiss');
@@ -134,6 +142,9 @@ final class App
             'job.status' => (new ScanController($this))->status($req, $id),
             'job.run' => (new ScanController($this))->run($req, $id),
             'job.cancel' => (new ScanController($this))->cancel($req, $id),
+            'search' => (new SearchController($this))->index($req),
+            'search.google' => (new SearchController($this))->google($req),
+            'search.add' => (new SearchController($this))->add($req),
             'dup.index' => (new DuplicateController($this))->index($req),
             'dup.merge' => (new DuplicateController($this))->merge($req, $id),
             'dup.dismiss' => (new DuplicateController($this))->dismiss($req, $id),

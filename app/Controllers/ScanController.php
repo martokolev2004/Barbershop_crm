@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace BarberLead\Controllers;
 
 use BarberLead\App;
-use BarberLead\Discovery\HttpClient;
 use BarberLead\Discovery\JobRunner;
 use BarberLead\Http\Request;
 use BarberLead\Http\Response;
@@ -18,7 +17,7 @@ final class ScanController
 
     private function runner(): JobRunner
     {
-        return new JobRunner($this->app->db, $this->app->events, $this->app->settings, new HttpClient());
+        return new JobRunner($this->app->db, $this->app->events, $this->app->settings, $this->app->http);
     }
 
     public function start(Request $req, int $areaId): Response

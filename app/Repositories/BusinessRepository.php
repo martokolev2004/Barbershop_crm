@@ -82,7 +82,9 @@ final class BusinessRepository
         if (!empty($f['area_ids'])) {
             $where[] = 'b.area_id IN (' . implode(',', array_map('intval', $f['area_ids'])) . ')';
         }
-        if (!empty($f['status'])) {
+        if (($f['status'] ?? '') === 'any') {
+            $where[] = 'b.merged_into_id IS NULL';
+        } elseif (!empty($f['status'])) {
             $where[] = 'b.status = ?';
             $params[] = $f['status'];
         } else {

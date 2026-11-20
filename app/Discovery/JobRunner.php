@@ -433,12 +433,12 @@ class JobRunner
         return (int) $this->settings->get('google_usage_' . date('Ym'), '0');
     }
 
-    private function googleBudgetLeft(): bool
+    public function googleBudgetLeft(): bool
     {
         return $this->googleUsageThisMonth() < (int) $this->settings->get('google_monthly_cap', '900');
     }
 
-    private function countGoogleRequest(): void
+    public function countGoogleRequest(): void
     {
         $this->db->prepare('INSERT INTO settings (name, value) VALUES (?, 1) ON DUPLICATE KEY UPDATE value = value + 1')
             ->execute(['google_usage_' . date('Ym')]);

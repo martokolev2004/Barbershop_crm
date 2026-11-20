@@ -25,7 +25,7 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 <meta name="robots" content="noindex, nofollow">
 <meta name="csrf" content="<?= e($csrf) ?>">
 <title><?= e($title ?? 'BarberLead') ?> · BarberLead</title>
-<link rel="stylesheet" href="/assets/app.css?v=9">
+<link rel="stylesheet" href="/assets/app.css?v=10">
 <script src="/assets/app.js?v=5" defer></script>
 </head>
 <body>
@@ -36,6 +36,7 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 <div class="shell">
   <aside class="side" aria-label="Навигация">
     <a class="brand" href="/"><b>BARBER</b>LEAD<small>КЛИЕНТИ · ДЕМА · ОФЕРТИ</small></a>
+    <form method="get" action="/search" class="side-search"><input type="search" name="q" value="<?= e($path === '/search' ? (string) ($q ?? '') : '') ?>" placeholder="Търси бизнес…" aria-label="Търси бизнес"></form>
     <nav class="nav">
       <?php foreach ($nav as $group => $items): ?>
       <?php if ($group !== ''): ?><span class="nav-group"><?= e($group) ?></span><?php endif; ?>

@@ -235,3 +235,8 @@ details.box[open]>summary{margin-bottom:12px}
 .wk-unknown{color:var(--faint)}
 .list td.actions{width:150px;min-width:150px}
 .list td.actions > .btn,.list td.actions > a.btn{display:flex;width:100%;margin:0 0 6px}
+/* Search */
+.side-search{padding:12px 12px 0}
+.side-search input{background:#1B1C20;border-color:#33353A;color:#fff;padding:8px 10px;font-size:.9rem;width:100%}
+.search-big{display:flex;gap:10px;align-items:center}
+.search-big input{flex:1;font-size:1rem}
