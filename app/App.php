@@ -150,6 +150,7 @@ final class App
         $this->view->share('pendingMigrations', $loggedIn ? count((new Migrator($this->db, BL_ROOT . '/migrations'))->pending()) : 0);
         $this->view->share('openDuplicates', $loggedIn ? $this->countOpenDuplicates() : 0);
         $this->view->share('rejectedCount', $loggedIn ? $this->businesses->countRejected() : 0);
+        $this->view->share('researchingCount', $loggedIn ? $this->businesses->countResearching() : 0);
 
         if (!$loggedIn && !in_array($req->path, self::PUBLIC_PATHS, true)) {
             if ($req->wantsJson) {

@@ -17,7 +17,8 @@ use BarberLead\Status;
         <?php if ($area['geo_confidence'] === 'approx'): ?> · <span class="geo-approx">границите и принадлежността към район са приблизителни (ще се проверят с OpenStreetMap)</span><?php endif; ?>
       </p>
     <?php else: ?>
-      <h1><?= $filters['status'] === 'rejected' ? 'Отхвърлени' : 'Бизнеси' ?></h1>
+      <h1><?= ['rejected' => 'Отхвърлени', 'researching' => 'Проучвам'][$filters['status']] ?? 'Бизнеси' ?></h1>
+      <?php if ($filters['status'] === 'researching'): ?><p class="muted small">Бизнесите, които проучваш. Не се показват в общия списък, докато са тук. Като решиш: „Квалифициран“ (продължава напред) или „Отхвърли“.</p><?php endif; ?>
       <?php if ($filters['status'] === 'rejected'): ?><p class="muted small">Тези бизнеси не се показват в списъка, Kanban и статистиките. Повторните сканирания не ги връщат.</p><?php endif; ?>
     <?php endif; ?>
   </div>
@@ -161,7 +162,12 @@ use BarberLead\Status;
         <?php if ($b['status'] === 'rejected'): ?>
           <form method="post" action="/businesses/<?= (int) $b['id'] ?>/restore"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? '/businesses') ?>"><button class="btn btn-sm">Върни</button></form>
         <?php else: ?>
-          <form method="post" action="/businesses/<?= (int) $b['id'] ?>/reject" class="reject-form"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? '/businesses') ?>"><input type="hidden" name="reason" value=""><button class="btn btn-sm btn-reject" title="Премести в Отхвърлени">Отхвърли</button></form>
+          <?php if ($b['status'] === 'researching'): ?>
+            <?= status_button((int) $b['id'], 'qualified', 'Квалифициран', $csrf) ?>
+          <?php elseif (in_array($b['status'], ['new', 'researched'], true)): ?>
+            <?= status_button((int) $b['id'], 'researching', 'Проучвам', $csrf) ?>
+          <?php endif; ?>
+          <form method="post" action="/businesses/<?= (int) $b['id'] ?>/reject" class="reject-form inline"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? '/businesses') ?>"><input type="hidden" name="reason" value=""><button class="btn btn-sm btn-reject" title="Премести в Отхвърлени">Отхвърли</button></form>
         <?php endif; ?>
       </td>
     </tr>

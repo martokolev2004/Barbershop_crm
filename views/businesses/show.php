@@ -18,6 +18,8 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
   <div class="row">
     <a class="btn btn-offer" href="#offer">Пусната оферта</a>
     <a class="btn" href="/businesses/<?= $id ?>/edit">Редактирай</a>
+    <?php if (in_array($b['status'], ['new', 'researched'], true)): ?><?= status_button($id, 'researching', 'Проучвам', $csrf, 'btn') ?><?php endif; ?>
+    <?php if ($b['status'] === 'researching'): ?><?= status_button($id, 'qualified', 'Квалифициран', $csrf, 'btn') ?><?php endif; ?>
     <?php if ($b['status'] === 'rejected'): ?>
       <form method="post" action="/businesses/<?= $id ?>/restore" class="inline"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><button class="btn">Върни от Отхвърлени</button></form>
     <?php else: ?>

@@ -218,4 +218,26 @@ final class HttpTest extends TestCase
         $this->assertSame('new', $this->db->query('SELECT status FROM businesses WHERE id = 900')->fetchColumn());
         $this->assertStringContainsString('FIXTURE Reject Me', $this->req('GET', '/businesses')->body);
     }
+
+    public function testResearchingHasItsOwnPage(): void
+    {
+        $this->login();
+        $this->db->exec("INSERT INTO businesses (id, name, name_normalized, relevance) VALUES (950, 'FIXTURE Research Me', 'research me', 'high')");
+        $list = $this->req('GET', '/businesses')->body;
+        $this->assertStringContainsString('FIXTURE Research Me', $list);
+        $this->assertStringContainsString('>Проучвам</button>', $list);
+
+        $r = $this->req('POST', '/businesses/950/status', ['status' => 'researching', 'back' => '/businesses']);
+        $this->assertSame('/businesses', $r->headers['Location']);
+        $this->req('GET', '/'); // consume flash
+        $this->assertStringNotContainsString('FIXTURE Research Me', $this->req('GET', '/businesses')->body, 'moved out of the main list');
+        $page = $this->req('GET', '/businesses', [], ['status' => 'researching'])->body;
+        $this->assertStringContainsString('FIXTURE Research Me', $page);
+        $this->assertStringContainsString('>Квалифициран</button>', $page);
+        $this->assertStringContainsString('<span class="pill">1</span>', $page, 'menu counter');
+
+        $this->req('POST', '/businesses/950/status', ['status' => 'qualified', 'back' => '/businesses?status=researching']);
+        $this->req('GET', '/');
+        $this->assertStringContainsString('FIXTURE Research Me', $this->req('GET', '/businesses')->body, 'back in the main list');
+    }
 }

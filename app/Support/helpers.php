@@ -76,14 +76,23 @@ function ext_link(?string $href, ?string $text = null): string
 
 function nav_active(string $path, string $href): bool
 {
-    $rejectedView = ($_GET['status'] ?? '') === 'rejected';
-    if (str_contains($href, 'status=rejected')) {
-        return $path === '/businesses' && $rejectedView;
+    $statusView = in_array($_GET['status'] ?? '', ['rejected', 'researching'], true) ? (string) $_GET['status'] : '';
+    if (preg_match('/status=(\w+)/', $href, $m)) {
+        return $path === '/businesses' && $statusView === $m[1];
     }
-    if ($href === '/businesses' && $rejectedView) {
+    if ($href === '/businesses' && $statusView !== '') {
         return false;
     }
     return $href === '/' ? $path === '/' : str_starts_with($path, $href);
+}
+
+/** Small POST button that changes a business status and returns to the current page. */
+function status_button(int $id, string $status, string $label, string $csrf, string $class = 'btn btn-sm'): string
+{
+    $back = (string) ($_SERVER['REQUEST_URI'] ?? '/businesses');
+    return '<form method="post" action="/businesses/' . $id . '/status" class="inline">'
+        . '<input type="hidden" name="_csrf" value="' . e($csrf) . '"><input type="hidden" name="status" value="' . e($status) . '">'
+        . '<input type="hidden" name="back" value="' . e($back) . '"><button class="' . e($class) . '">' . e($label) . '</button></form>';
 }
 
 /** True when the area node or anything below it is the selected area. @param array<string,mixed> $node */

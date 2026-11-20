@@ -84,7 +84,7 @@ final class BusinessRepository
             $where[] = 'b.status = ?';
             $params[] = $f['status'];
         } else {
-            $where[] = "b.status NOT IN ('archived','rejected')";
+            $where[] = "b.status NOT IN ('archived','rejected','researching')";
         }
         if (($f['relevance'] ?? '') === 'relevant') {
             $where[] = "b.relevance IN ('high','medium')";
@@ -186,6 +186,11 @@ final class BusinessRepository
     public function countRejected(): int
     {
         return (int) $this->db->query("SELECT COUNT(*) FROM businesses WHERE status = 'rejected'")->fetchColumn();
+    }
+
+    public function countResearching(): int
+    {
+        return (int) $this->db->query("SELECT COUNT(*) FROM businesses WHERE status = 'researching'")->fetchColumn();
     }
 
     public function addNote(int $id, string $note, string $actor): void

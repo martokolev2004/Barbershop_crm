@@ -211,3 +211,4 @@ details.box[open]>summary{margin-bottom:12px}
 .btn-reject:hover{border-color:var(--err);background:var(--errbg)}
 .n-muted{color:#8E8B85;font-size:.8rem}
 .st-rejected{color:var(--err);background:var(--errbg);border-color:#E7BDB8}
+.list td form.inline{display:inline-block;margin:0 4px 4px 0}
