@@ -240,9 +240,17 @@ class JobRunner
         while ($geomArea !== null && $geomArea['geometry'] === null && $geomArea['type'] === 'neighborhood') {
             $geomArea = $this->area((int) $geomArea['parent_id']);
         }
+        if (($geomArea === null || $geomArea['geometry'] === null) && $cityId !== null) {
+            // The city-wide import missed this area: look it up on its own, then fall back to Google's area box.
+            $outcome = $this->lookupMissingBoundary($area, $cityId, $state);
+            if ($outcome === 'retry') {
+                return 'retry';
+            }
+            $geomArea = $this->area($areaId);
+        }
         if ($geomArea === null || $geomArea['geometry'] === null) {
             foreach (array_keys($state['sources']) as $s) {
-                $state['sources'][$s] = 'failed: няма граници на района в OpenStreetMap, затова не може да се сканира';
+                $state['sources'][$s] = 'failed: няма граници на района нито в OpenStreetMap, нито в Google, затова не може да се сканира';
             }
             return 'next';
         }
@@ -251,6 +259,46 @@ class JobRunner
         }
         $rings = json_decode((string) $geomArea['geometry'], true);
         $state['scan'] = ['area_id' => (int) $geomArea['id'], 'name' => $geomArea['name_bg'], 'bbox' => Geo::bbox($rings), 'rings' => $rings];
+        return 'next';
+    }
+
+    /**
+     * @param array<string,mixed> $area
+     * @param array<string,mixed> $state
+     */
+    private function lookupMissingBoundary(array $area, int $cityId, array &$state): string
+    {
+        $city = $this->area($cityId);
+        $cityBbox = BoundaryImporter::CITY_BBOX[$city['slug'] ?? ''] ?? null;
+        if ($cityBbox === null) {
+            return 'next';
+        }
+        $importer = new BoundaryImporter($this->db, $this->http);
+        $n = (int) ($state['attempts']['prepare'] ?? 0);
+        $r = $importer->lookupArea($area, $cityBbox, $n);
+        if (!$r['ok']) {
+            $state['attempts']['prepare'] = $n + 1;
+            if ($r['transient'] && $n + 1 < self::MAX_ATTEMPTS) {
+                $state['notes'][] = $r['message'] . ' (опит ' . ($n + 1) . ', ще опитам пак)';
+                return 'retry';
+            }
+        }
+        $state['notes'][] = $r['message'];
+        if ($r['found']) {
+            return 'next';
+        }
+        $key = (string) $this->settings->get('google_api_key', '');
+        if ($key === '' || !$this->googleBudgetLeft()) {
+            return 'next';
+        }
+        [$bbox, $err] = (new GooglePlacesSource($this->http, $key))->areaViewport($area['name_bg'] . ', ' . ($city['name_bg'] ?? ''));
+        $this->countGoogleRequest();
+        if ($bbox === null) {
+            $state['notes'][] = (string) $err;
+            return 'next';
+        }
+        $importer->saveApproxBox((int) $area['id'], $bbox, 'google:viewport');
+        $state['notes'][] = 'Използвана е приблизителната област на „' . $area['name_bg'] . '“ от Google (няма точни граници в OpenStreetMap).';
         return 'next';
     }
 

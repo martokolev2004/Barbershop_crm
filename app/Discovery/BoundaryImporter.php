@@ -142,6 +142,68 @@ class BoundaryImporter
             'matched' => $matched, 'added' => $added, 'moved' => $moved];
     }
 
+    /**
+     * Looks up the polygon of ONE area by its name (used when the city-wide import missed it).
+     * @param array<string,mixed> $area
+     * @param array{south:float,west:float,north:float,east:float} $cityBbox
+     * @return array{ok:bool, transient:bool, found:bool, message:string}
+     */
+    public function lookupArea(array $area, array $cityBbox, int $attempt = 0): array
+    {
+        $name = trim((string) preg_replace('/[^\p{L}\p{N} ]+/u', ' ', (string) $area['name_bg']));
+        if ($name === '') {
+            return ['ok' => true, 'transient' => false, 'found' => false, 'message' => 'Няма име за търсене'];
+        }
+        $bb = sprintf('%.4f,%.4f,%.4f,%.4f', $cityBbox['south'], $cityBbox['west'], $cityBbox['north'], $cityBbox['east']);
+        $re = str_replace(' ', '[ -]', $name);
+        $query = "[out:json][timeout:60];("
+            . "relation[\"boundary\"=\"administrative\"][\"admin_level\"~\"^(9|10)$\"][\"name\"~\"$re\",i]($bb);"
+            . "way[\"place\"~\"^(suburb|quarter|neighbourhood)$\"][\"name\"~\"$re\",i]($bb);"
+            . "relation[\"place\"~\"^(suburb|quarter|neighbourhood)$\"][\"name\"~\"$re\",i]($bb);"
+            . ");out geom;";
+        $resp = $this->http->post(OverpassSource::endpoint($attempt), http_build_query(['data' => $query]),
+            ['Content-Type' => 'application/x-www-form-urlencoded'], 70);
+        if ($resp['error'] !== null || $resp['status'] !== 200) {
+            return ['ok' => false, 'transient' => HttpClient::isTransient($resp['status'], $resp['error']), 'found' => false,
+                'message' => 'OpenStreetMap: ' . ($resp['error'] ?? 'HTTP ' . $resp['status'])];
+        }
+        $data = json_decode($resp['body'], true);
+        $elements = is_array($data) && is_array($data['elements'] ?? null) ? $data['elements'] : [];
+        $want = Text::normalizeName((string) $area['name_bg']);
+        $best = null;
+        $bestRank = -1;
+        foreach ($elements as $el) {
+            $rings = self::rings($el);
+            if (!$rings) {
+                continue;
+            }
+            $exact = Text::normalizeName(self::cleanName((string) ($el['tags']['name'] ?? ''))) === $want;
+            $isAdmin = isset($el['tags']['admin_level']);
+            $typeFits = $area['type'] === 'district' ? $isAdmin : !$isAdmin;
+            $rank = ($exact ? 2 : 0) + ($typeFits ? 1 : 0);
+            if ($rank > $bestRank) {
+                [$best, $bestRank] = [[$el, $rings], $rank];
+            }
+        }
+        if ($best === null) {
+            return ['ok' => true, 'transient' => false, 'found' => false, 'message' => 'OpenStreetMap няма граници за „' . $area['name_bg'] . '“'];
+        }
+        $this->saveGeometry((int) $area['id'], $best[1], 'osm:' . $best[0]['type'] . '/' . $best[0]['id'], (int) $best[0]['id']);
+        return ['ok' => true, 'transient' => false, 'found' => true, 'message' => 'Границите на „' . $area['name_bg'] . '“ са заредени от OpenStreetMap'];
+    }
+
+    /**
+     * Stores an approximate rectangle (e.g. Google's viewport for the area name) when no polygon exists.
+     * @param array{south:float,west:float,north:float,east:float} $b
+     */
+    public function saveApproxBox(int $areaId, array $b, string $source): void
+    {
+        $ring = [[$b['south'], $b['west']], [$b['south'], $b['east']], [$b['north'], $b['east']], [$b['north'], $b['west']], [$b['south'], $b['west']]];
+        $this->db->prepare("UPDATE areas SET geometry = ?, geometry_source = ?, geometry_updated_at = NOW() WHERE id = ?")
+            ->execute([json_encode([$ring]), $source, $areaId]);
+        $this->setBbox($areaId, [$ring]);
+    }
+
     /** @return array<string,int> normalised name => id */
     private function children(int $parentId, string $type): array
     {

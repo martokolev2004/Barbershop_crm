@@ -278,4 +278,60 @@ final class ScanTest extends TestCase
         $this->assertTrue(\BarberLead\Discovery\OverpassSource::isHairPlace(['name' => 'X', 'shop' => 'hairdresser']));
         $this->assertTrue(\BarberLead\Discovery\OverpassSource::isHairPlace(['name' => 'Barber Ivo']));
     }
+
+    /** The owner's case: city boundaries were imported, but this district was missed → look it up on its own. */
+    public function testMissingDistrictBoundaryIsLookedUpInOsm(): void
+    {
+        $mladost = $this->areaId('mladost', 'district');
+        $sofia = $this->areaId('sofia', 'city');
+        $this->settings->set("boundaries_city_$sofia", date('c')); // import already ran
+        $ring = Fixtures::square(42.640, 23.360, 42.660, 23.390);
+        $this->http->push('overpass-api.de', 200, (string) json_encode(['elements' => [[
+            'type' => 'relation', 'id' => 9100, 'tags' => ['name' => 'район Младост', 'admin_level' => '9'],
+            'members' => [['type' => 'way', 'role' => 'outer', 'geometry' => array_map(fn ($p) => ['lat' => $p[0], 'lon' => $p[1]], $ring)]],
+        ]]]));
+        $this->http->push('overpass-api.de', 200, (string) json_encode(['elements' => [
+            ['type' => 'node', 'id' => 5001, 'lat' => 42.65, 'lon' => 23.37, 'tags' => ['shop' => 'hairdresser', 'hairdresser' => 'barber', 'name' => 'FIXTURE Mladost Barber']],
+        ]]));
+        $job = $this->runToEnd($this->runner()->queueScan($mladost, ['osm'], 't')[0]);
+        $this->assertSame('done', $job['status'], (string) $job['error']);
+        $this->assertSame(1, (int) $job['new_count']);
+        $this->assertStringContainsString('„Младост“ са заредени от OpenStreetMap', (string) $job['log']);
+        $this->assertStringStartsWith('osm:', (string) $this->db->query("SELECT geometry_source FROM areas WHERE id = $mladost")->fetchColumn());
+    }
+
+    public function testGoogleViewportIsUsedWhenOsmHasNoBoundary(): void
+    {
+        $this->settings->set('google_api_key', 'FIXTURE-KEY-0123456789abcdefghijklmnop');
+        $slatina = $this->areaId('slatina', 'district');
+        $sofia = $this->areaId('sofia', 'city');
+        $this->settings->set("boundaries_city_$sofia", date('c'));
+        $this->http->push('overpass-api.de', 200, '{"elements":[]}'); // OSM: nothing for this name
+        $this->http->push('places.googleapis.com', 200, (string) json_encode(['places' => [['viewport' => [
+            'low' => ['latitude' => 42.680, 'longitude' => 23.350], 'high' => ['latitude' => 42.700, 'longitude' => 23.380]]]]]));
+        for ($i = 0; $i < 6; $i++) {
+            $this->http->push('places.googleapis.com', 200, (string) json_encode(['places' => [
+                ['id' => 'gSL1', 'displayName' => ['text' => 'FIXTURE Slatina Barbers'], 'location' => ['latitude' => 42.69, 'longitude' => 23.36],
+                    'nationalPhoneNumber' => '0888 500 001', 'types' => ['barber_shop']],
+            ]]));
+        }
+        $job = $this->runToEnd($this->runner()->queueScan($slatina, ['google'], 't')[0]);
+        $this->assertSame('done', $job['status'], (string) $job['error']);
+        $this->assertSame(1, (int) $job['new_count']);
+        $this->assertStringContainsString('приблизителната област на „Слатина“ от Google', (string) $job['log']);
+        $this->assertSame('google:viewport', $this->db->query("SELECT geometry_source FROM areas WHERE id = $slatina")->fetchColumn());
+        $this->assertSame('7', $this->settings->get('google_usage_' . date('Ym')), '1 viewport + 6 searches');
+        $this->assertSame('approx', $this->db->query("SELECT geo_confidence FROM businesses WHERE name = 'FIXTURE Slatina Barbers'")->fetchColumn());
+    }
+
+    public function testClearFailureWhenNoBoundaryAnywhere(): void
+    {
+        $slatina = $this->areaId('slatina', 'district');
+        $sofia = $this->areaId('sofia', 'city');
+        $this->settings->set("boundaries_city_$sofia", date('c'));
+        $this->http->push('overpass-api.de', 200, '{"elements":[]}');
+        $job = $this->runToEnd($this->runner()->queueScan($slatina, ['osm'], 't')[0]);
+        $this->assertSame('failed', $job['status']);
+        $this->assertStringContainsString('нито в OpenStreetMap, нито в Google', (string) $job['error']);
+    }
 }

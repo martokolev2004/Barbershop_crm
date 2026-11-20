@@ -45,10 +45,12 @@ use BarberLead\Status;
     <button class="btn btn-sm">Запиши</button>
   </form>
   <?php if ($cityPlan['districts']): ?>
-  <table class="list"><thead><tr><th>Район</th><th>Последно сканиране</th><th>Следващо</th></tr></thead><tbody>
+  <p class="small">Граници: <strong><?= (int) $cityPlan['withGeometry'] ?> от <?= count($cityPlan['districts']) ?></strong> района. Районите без граници си ги търсят сами при сканиране (OpenStreetMap, после Google).</p>
+  <table class="list"><thead><tr><th>Район</th><th>Граници</th><th>Последно сканиране</th><th>Следващо</th></tr></thead><tbody>
     <?php foreach ($cityPlan['districts'] as $d): ?>
       <tr>
         <td><a href="<?= e(url('/businesses', ['area' => $d['id']])) ?>"><?= e($d['name_bg']) ?></a></td>
+        <td class="small nowrap"><?= (int) $d['has_geometry'] !== 1 ? '<span class="field-err">няма</span>' : (str_starts_with((string) $d['geometry_source'], 'osm:') ? '✓ точни (OSM)' : '≈ приблизителни (Google)') ?></td>
         <td class="small"><?= $d['last_status'] ? job_badge($d['last_status']) . ' ' . fmt_date($d['last_finished'], true) . ' · ' . (int) $d['last_found'] . ' намерени' : '<span class="muted">още не</span>' ?></td>
         <td class="small nowrap"><?= (int) $d['enabled'] === 1 ? fmt_date($d['next_run_at'], true) : '<span class="muted">изключено</span>' ?></td>
       </tr>

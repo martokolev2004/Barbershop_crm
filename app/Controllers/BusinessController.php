@@ -65,7 +65,7 @@ final class BusinessController
     private function cityPlan(int $cityId): array
     {
         $stmt = $this->app->db->prepare(
-            "SELECT d.id, d.name_bg, s.enabled, s.interval_days, s.next_run_at,
+            "SELECT d.id, d.name_bg, s.enabled, s.interval_days, s.next_run_at, d.geometry IS NOT NULL AS has_geometry, d.geometry_source,
                     (SELECT j.status FROM jobs j WHERE j.area_id = d.id ORDER BY j.id DESC LIMIT 1) AS last_status,
                     (SELECT j.finished_at FROM jobs j WHERE j.area_id = d.id ORDER BY j.id DESC LIMIT 1) AS last_finished,
                     (SELECT j.found_count FROM jobs j WHERE j.area_id = d.id ORDER BY j.id DESC LIMIT 1) AS last_found
@@ -79,6 +79,7 @@ final class BusinessController
             'districts' => $rows,
             'enabled' => count($enabled),
             'interval' => $enabled ? (int) reset($enabled)['interval_days'] : 15,
+            'withGeometry' => count(array_filter($rows, fn ($r) => (int) $r['has_geometry'] === 1)),
         ];
     }
 

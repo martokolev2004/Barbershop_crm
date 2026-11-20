@@ -65,6 +65,33 @@ class GooglePlacesSource
     }
 
     /**
+     * Rectangle Google uses for a place name such as "Младост, София" (fallback when OSM has no boundary).
+     * @return array{0: array{south:float,west:float,north:float,east:float}|null, 1: ?string, 2: bool} [bbox, error, transient]
+     */
+    public function areaViewport(string $query): array
+    {
+        $resp = $this->http->post(self::ENDPOINT, (string) json_encode(['textQuery' => $query, 'languageCode' => 'bg', 'regionCode' => 'BG', 'pageSize' => 1]), [
+            'Content-Type' => 'application/json',
+            'X-Goog-Api-Key' => $this->apiKey,
+            'X-Goog-FieldMask' => 'places.viewport,places.displayName',
+        ], 30);
+        if ($resp['error'] !== null || $resp['status'] !== 200) {
+            return [null, 'Google Places: ' . ($resp['error'] ?? 'HTTP ' . $resp['status']), HttpClient::isTransient($resp['status'], $resp['error'])];
+        }
+        $v = json_decode($resp['body'], true)['places'][0]['viewport'] ?? null;
+        if (!is_array($v) || !isset($v['low']['latitude'], $v['high']['latitude'])) {
+            return [null, 'Google не намери „' . $query . '“', false];
+        }
+        $b = ['south' => (float) $v['low']['latitude'], 'west' => (float) $v['low']['longitude'],
+            'north' => (float) $v['high']['latitude'], 'east' => (float) $v['high']['longitude']];
+        // a neighborhood/district is at most a few km across; anything bigger is a wrong match (e.g. the whole city)
+        if ($b['north'] - $b['south'] > 0.12 || $b['east'] - $b['west'] > 0.16 || $b['north'] <= $b['south']) {
+            return [null, 'Google върна твърде голяма област за „' . $query . '“', false];
+        }
+        return [$b, null, false];
+    }
+
+    /**
      * @param list<array<string,mixed>> $places
      * @return list<Candidate>
      */
