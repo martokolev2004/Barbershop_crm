@@ -11,6 +11,7 @@ use PDO;
 final class BusinessRepository
 {
     public const SORTS = [
+        'reviews' => 'b.reviews_count',
         'updated' => 'b.updated_at',
         'name' => 'b.name',
         'score' => 'COALESCE(b.lead_score_override, b.lead_score)',
@@ -47,7 +48,7 @@ final class BusinessRepository
     public function search(array $f): array
     {
         [$where, $params] = $this->where($f);
-        $sort = self::SORTS[$f['sort'] ?? 'updated'] ?? self::SORTS['updated'];
+        $sort = self::SORTS[$f['sort'] ?? 'reviews'] ?? self::SORTS['reviews'];
         $dir = strtolower($f['dir'] ?? '') === 'asc' ? 'ASC' : 'DESC';
         $perPage = max(10, min(200, $f['per_page'] ?? 50));
         $page = max(1, $f['page'] ?? 1);
@@ -60,7 +61,8 @@ final class BusinessRepository
 
         $stmt = $this->db->prepare(
             "SELECT b.*, COALESCE(b.lead_score_override, b.lead_score) AS score,
-                    (SELECT MAX(o.sent_at) FROM offers o WHERE o.business_id = b.id) AS last_offer_at
+                    (SELECT MAX(o.sent_at) FROM offers o WHERE o.business_id = b.id) AS last_offer_at,
+                    (SELECT d.url FROM demos d WHERE d.business_id = b.id AND d.status <> 'rejected' ORDER BY d.id DESC LIMIT 1) AS demo_url
              FROM businesses b WHERE $where
              ORDER BY $sort IS NULL, $sort $dir, b.id DESC
              LIMIT $perPage OFFSET " . (($page - 1) * $perPage)
@@ -92,9 +94,17 @@ final class BusinessRepository
             $where[] = 'b.relevance = ?';
             $params[] = $f['relevance'];
         }
-        if (!empty($f['website'])) {
-            $where[] = 'b.website_status = ?';
-            $params[] = $f['website'];
+        $noLinks = 'b.website_url IS NULL AND b.instagram_url IS NULL AND b.facebook_url IS NULL';
+        match ($f['website'] ?? '') {
+            'has' => $where[] = 'b.website_url IS NOT NULL',
+            'social' => $where[] = 'b.website_url IS NULL AND (b.instagram_url IS NOT NULL OR b.facebook_url IS NOT NULL)',
+            'none' => $where[] = "$noLinks AND b.website_status = 'none'",
+            'unknown' => $where[] = "$noLinks AND b.website_status <> 'none'",
+            'weak', 'good' => $where[] = "b.website_status = '" . $f['website'] . "'",
+            default => null,
+        };
+        if (!empty($f['created_days'])) {
+            $where[] = 'b.created_at >= NOW() - INTERVAL ' . (int) $f['created_days'] . ' DAY';
         }
         if (!empty($f['q'])) {
             $q = (string) $f['q'];
@@ -269,7 +279,8 @@ final class BusinessRepository
         }
         $row = $this->db->query(
             "SELECT COUNT(*) AS total,
-                    COALESCE(SUM(website_status = 'none'), 0) AS no_website,
+                    COALESCE(SUM(website_url IS NULL), 0) AS no_website,
+                    COALESCE(SUM(website_url IS NULL AND (instagram_url IS NOT NULL OR facebook_url IS NOT NULL)), 0) AS social_only,
                     COALESCE(SUM(website_status = 'weak'), 0) AS weak_website,
                     COALESCE(SUM(website_status = 'unknown'), 0) AS unknown_website,
                     COALESCE(SUM(status IN ('qualified','demo_generating','demo_awaiting_approval','demo_approved','ready_for_outreach')), 0) AS qualified,

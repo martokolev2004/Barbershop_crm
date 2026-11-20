@@ -33,14 +33,25 @@ final class View
         if (!is_file($file)) {
             throw new \RuntimeException("View not found: $template");
         }
+        return $this->renderFile($file, $this->shared + $vars);
+    }
+
+    /**
+     * Isolated scope: only the template variables exist here, so names like $template or $file in
+     * the data can never collide with this method's own variables.
+     * @param array<string,mixed> $__vars
+     */
+    private function renderFile(string $__file, array $__vars): string
+    {
         $view = $this;
-        extract($this->shared + $vars, EXTR_SKIP);
+        extract($__vars, EXTR_SKIP);
+        unset($__vars);
         ob_start();
         try {
-            include $file;
-        } catch (\Throwable $e) {
+            include $__file;
+        } catch (\Throwable $__e) {
             ob_end_clean();
-            throw $e;
+            throw $__e;
         }
         return (string) ob_get_clean();
     }

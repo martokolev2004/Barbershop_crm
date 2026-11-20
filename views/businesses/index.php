@@ -29,9 +29,9 @@ use BarberLead\Status;
 <div class="stats">
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['rel' => 'high', 'page' => null])) ?>"><strong><?= $areaStats['barbershops'] ?></strong><span>бръснарници</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['rel' => 'medium', 'page' => null])) ?>"><strong><?= $areaStats['salons'] ?></strong><span>фризьорски салони</span></a>
-  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'qualified', 'page' => null])) ?>"><strong><?= $areaStats['qualified'] ?></strong><span>квалифицирани</span></a>
-  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'none', 'page' => null])) ?>"><strong><?= $areaStats['no_website'] ?></strong><span>без открит сайт</span></a>
-  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'weak', 'page' => null])) ?>"><strong><?= $areaStats['weak_website'] ?></strong><span>слаб сайт</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'qualified', 'page' => null])) ?>"><strong><?= $areaStats['qualified'] ?></strong><span>за оферта</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'social', 'page' => null])) ?>"><strong><?= $areaStats['social_only'] ?></strong><span>само Instagram/FB</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'none', 'page' => null])) ?>"><strong><?= $areaStats['no_website'] - $areaStats['social_only'] ?></strong><span>без сайт и без профили</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'offer_sent', 'page' => null])) ?>"><strong><?= $areaStats['offer_sent'] ?></strong><span>пуснати оферти</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['rel' => 'low', 'page' => null])) ?>"><strong><?= $areaStats['low_relevance'] ?></strong><span>неподходящи (скрити)</span></a>
 </div>
@@ -118,12 +118,12 @@ use BarberLead\Status;
   <?php if ($area): ?><input type="hidden" name="area" value="<?= (int) $area['id'] ?>"><?php endif; ?>
   <input type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="Име, адрес, телефон, квартал, Instagram, сайт…" aria-label="Търсене">
   <select name="status" aria-label="Статус" data-autosubmit>
-    <option value="">Всички статуси (без архив)</option>
-    <?php foreach (Status::LABELS as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['status'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
+    <option value="">Всички етапи</option>
+    <?php foreach (Status::options($filters['status']) as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['status'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
   </select>
   <select name="web" aria-label="Сайт" data-autosubmit>
     <option value="">Всякакъв сайт</option>
-    <?php foreach (Status::WEBSITE as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['website'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
+    <?php foreach (Status::WEB_KIND as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['website'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
   </select>
   <input type="hidden" name="rel" value="<?= e($filters['relevance']) ?>">
   <button class="btn">Търси</button>
@@ -145,31 +145,31 @@ use BarberLead\Status;
     <th><?= sort_link($filters, $area, 'name', 'Бизнес') ?></th>
     <th>Квартал</th>
     <th>Сайт</th>
-    <th>Статус</th>
-    <th><?= sort_link($filters, $area, 'score', 'Оценка') ?></th>
-    <th><?= sort_link($filters, $area, 'rating', 'Рейтинг') ?></th>
+    <th>Етап</th>
+    <th><?= sort_link($filters, $area, 'reviews', 'Отзиви') ?></th>
     <th><?= sort_link($filters, $area, 'updated', 'Обновен') ?></th>
     <th></th>
   </tr></thead>
   <tbody>
-  <?php foreach ($result['rows'] as $b): $score = $b['score']; ?>
+  <?php foreach ($result['rows'] as $b): ?>
     <tr>
       <td class="name"><a href="/businesses/<?= (int) $b['id'] ?>"><?= e($b['name']) ?></a>
-        <span class="sub"><?= relevance_badge($b['relevance']) ?> <?= e($b['address'] ?? '') ?><?= $b['phone'] ? ' · ' . e($b['phone']) : '' ?></span></td>
+        <span class="sub"><?= relevance_badge($b['relevance']) ?> <?= e($b['address'] ?? '') ?></span>
+        <?= contact_links($b) ?></td>
       <td data-label="Квартал"><?= e($app->areas->label($b['area_id'] !== null ? (int) $b['area_id'] : null)) ?></td>
-      <td data-label="Сайт"><?= website_badge($b['website_status']) ?></td>
+      <td data-label="Сайт"><?= web_kind_badge($b) ?></td>
       <td data-label="Статус"><?= status_badge($b['status']) ?><?php if ($b['last_offer_at']): ?><span class="sub">оферта <?= fmt_date($b['last_offer_at']) ?></span><?php endif; ?></td>
-      <td data-label="Оценка"><?= $score !== null ? '<span class="score' . ((int) $score >= 70 ? ' hi' : '') . '">' . (int) $score . '</span>' : '<span class="muted">—</span>' ?></td>
-      <td data-label="Рейтинг" class="nowrap"><?= $b['rating'] !== null ? e(number_format((float) $b['rating'], 1, ',', '')) . ' ★' . ($b['reviews_count'] !== null ? ' <span class="muted small">(' . (int) $b['reviews_count'] . ')</span>' : '') : '—' ?></td>
+      <td data-label="Отзиви" class="nowrap"><?= $b['reviews_count'] !== null ? '<strong>' . (int) $b['reviews_count'] . '</strong>' . ($b['rating'] !== null ? ' <span class="muted small">' . e(number_format((float) $b['rating'], 1, ',', '')) . ' ★</span>' : '') : '<span class="muted">—</span>' ?></td>
       <td data-label="Обновен" class="nowrap"><?= fmt_date($b['updated_at']) ?></td>
       <td class="actions">
         <?php if ($b['status'] === 'rejected'): ?>
           <form method="post" action="/businesses/<?= (int) $b['id'] ?>/restore"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? '/businesses') ?>"><button class="btn btn-sm">Върни</button></form>
         <?php else: ?>
+          <?= write_button($b, $template, $myName) ?>
           <?php if ($b['relevance'] === 'high'): ?><?= relevance_button((int) $b['id'], 'medium', '→ Салон', $csrf) ?>
           <?php else: ?><?= relevance_button((int) $b['id'], 'high', '→ Бръснарница', $csrf) ?><?php endif; ?>
           <?php if ($b['status'] === 'researching'): ?>
-            <?= status_button((int) $b['id'], 'qualified', 'Квалифициран', $csrf) ?>
+            <?= status_button((int) $b['id'], 'qualified', 'За оферта', $csrf) ?>
           <?php elseif (in_array($b['status'], ['new', 'researched'], true)): ?>
             <?= status_button((int) $b['id'], 'researching', 'Проучвам', $csrf) ?>
           <?php endif; ?>

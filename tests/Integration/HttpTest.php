@@ -245,11 +245,38 @@ final class HttpTest extends TestCase
         $this->assertStringNotContainsString('FIXTURE Research Me', $this->req('GET', '/businesses')->body, 'moved out of the main list');
         $page = $this->req('GET', '/businesses', [], ['status' => 'researching'])->body;
         $this->assertStringContainsString('FIXTURE Research Me', $page);
-        $this->assertStringContainsString('>Квалифициран</button>', $page);
+        $this->assertStringContainsString('>За оферта</button>', $page);
         $this->assertStringContainsString('<span class="pill">1</span>', $page, 'menu counter');
 
         $this->req('POST', '/businesses/950/status', ['status' => 'qualified', 'back' => '/businesses?status=researching']);
         $this->req('GET', '/');
         $this->assertStringContainsString('FIXTURE Research Me', $this->req('GET', '/businesses')->body, 'back in the main list');
+    }
+
+    public function testWriteButtonAndWebsiteKinds(): void
+    {
+        $this->login();
+        $this->req('POST', '/settings', ['outreach_template' => 'Здравейте, {name}! {demo_url}', 'my_name' => 'Мартин', 'follow_up_days' => '5']);
+        $this->req('GET', '/');
+        $this->assertStringContainsString('>Здравейте, {name}! {demo_url}</textarea>', $this->req('GET', '/settings')->body, 'settings shows the real template');
+        $this->db->exec("INSERT INTO businesses (id, name, name_normalized, relevance, instagram_url, phone, phone_normalized, reviews_count) VALUES
+            (970, 'FIXTURE Insta Only', 'insta', 'high', 'https://www.instagram.com/fixture_insta', '0888 970 970', '+359888970970', 300),
+            (971, 'FIXTURE With Site', 'site', 'high', NULL, NULL, NULL, 10)");
+        $this->db->exec("UPDATE businesses SET website_url = 'https://site.example', website_domain = 'site.example' WHERE id = 971");
+        $this->db->exec("INSERT INTO demos (business_id, url) VALUES (970, 'https://insta-demo.testvane.org/')");
+        $this->req('GET', '/');
+        $list = $this->req('GET', '/businesses')->body;
+        $this->assertStringContainsString('data-message="Здравейте, FIXTURE Insta Only! https://insta-demo.testvane.org/"', $list, 'personal message with its own demo');
+        $this->assertStringContainsString('data-open="https://www.instagram.com/fixture_insta"', $list);
+        $this->assertStringContainsString('viber://chat?number=%2B359888970970', $list);
+        $this->assertStringContainsString('Само Instagram/FB', $list);
+        $this->assertStringContainsString('Има сайт', $list);
+        $this->assertLessThan(strpos($list, 'FIXTURE With Site'), strpos($list, 'FIXTURE Insta Only'), 'most reviews first');
+        $social = $this->req('GET', '/businesses', [], ['web' => 'social'])->body;
+        $this->assertStringContainsString('FIXTURE Insta Only', $social);
+        $this->assertStringNotContainsString('FIXTURE With Site', $social);
+        $today = $this->req('GET', '/')->body;
+        $this->assertStringContainsString('Да пиша пак днес', $today);
+        $this->assertStringContainsString('FIXTURE Insta Only', $today, 'new barbershop of this week');
     }
 }

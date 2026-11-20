@@ -151,3 +151,23 @@ document.addEventListener('submit', function (e) {
   f.setAttribute('data-asked', '1');
   f.submit();
 });
+
+/* "Пиши": copy the personal message, then open the business's Instagram/Facebook to paste it. */
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest ? e.target.closest('[data-write]') : null;
+  if (!btn) return;
+  var text = btn.getAttribute('data-message') || '';
+  // synchronous copy (keeps working when the new tab takes focus)
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+  document.body.removeChild(ta);
+  if (!ok && navigator.clipboard) { navigator.clipboard.writeText(text); }
+  var url = btn.getAttribute('data-open');
+  if (url) { window.open(url, '_blank', 'noopener'); }
+  var label = btn.textContent;
+  btn.textContent = 'Копирано ✓'; btn.classList.add('done');
+  setTimeout(function () { btn.textContent = label; btn.classList.remove('done'); }, 2500);
+});

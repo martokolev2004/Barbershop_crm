@@ -13,7 +13,7 @@ use BarberLead\Status;
           <a href="/businesses/<?= (int) $c['id'] ?>"><?= e($c['name']) ?></a>
           <div class="meta"><span><?= e($c['area_label']) ?></span><?php if ($c['score'] !== null): ?><span class="score"><?= (int) $c['score'] ?></span><?php endif; ?></div>
           <select aria-label="Статус">
-            <?php foreach (Status::LABELS as $k => $l): if ($k === 'archived') continue; ?><option value="<?= e($k) ?>"<?= $c['status'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
+            <?php foreach (Status::options($c['status']) as $k => $l): ?><option value="<?= e($k) ?>"<?= $c['status'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
           </select>
         </article>
       <?php endforeach; ?>

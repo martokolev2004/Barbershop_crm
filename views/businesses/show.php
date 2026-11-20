@@ -12,14 +12,14 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
   <div>
     <div class="crumbs"><a href="/businesses">Бизнеси</a><?php if ($b['area_id']): ?> / <a href="<?= e(url('/businesses', ['area' => $b['area_id']])) ?>"><?= e($areaLabel) ?></a><?php endif; ?></div>
     <h1><?= e($b['name']) ?></h1>
-    <div class="row small"><?= status_badge($b['status']) ?> <?= website_badge($b['website_status']) ?> <?= relevance_badge($b['relevance']) ?>
+    <div class="row small"><?= status_badge($b['status']) ?> <?= web_kind_badge($b) ?> <?= relevance_badge($b['relevance']) ?>
       <?php if ($score !== null): ?><span class="score<?= (int) $score >= 70 ? ' hi' : '' ?>" title="Оценка на лийда"><?= (int) $score ?></span><?php endif; ?></div>
   </div>
   <div class="row">
     <a class="btn btn-offer" href="#offer">Пусната оферта</a>
     <a class="btn" href="/businesses/<?= $id ?>/edit">Редактирай</a>
     <?php if (in_array($b['status'], ['new', 'researched'], true)): ?><?= status_button($id, 'researching', 'Проучвам', $csrf, 'btn') ?><?php endif; ?>
-    <?php if ($b['status'] === 'researching'): ?><?= status_button($id, 'qualified', 'Квалифициран', $csrf, 'btn') ?><?php endif; ?>
+    <?php if ($b['status'] === 'researching'): ?><?= status_button($id, 'qualified', 'За оферта', $csrf, 'btn') ?><?php endif; ?>
     <?php if ($b['status'] === 'rejected'): ?>
       <form method="post" action="/businesses/<?= $id ?>/restore" class="inline"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><button class="btn">Върни от Отхвърлени</button></form>
     <?php else: ?>
@@ -64,7 +64,7 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
     <section class="card">
       <h2>Сайт и оценка</h2>
       <dl class="kv">
-        <dt>Сайт</dt><dd><?= website_badge($b['website_status']) ?></dd>
+        <dt>Сайт</dt><dd><?= web_kind_badge($b) ?></dd>
         <dt>Оценка</dt><dd><?= $score !== null ? (int) $score . ' / 100' . ($b['lead_score_override'] !== null ? ' <span class="muted small">(ръчна)</span>' : '') : '<span class="muted">още не е изчислена</span>' ?></dd>
         <?php if ($b['score_explanation']): ?><dt>Защо</dt><dd class="small"><?= nl2br(e($b['score_explanation'])) ?></dd><?php endif; ?>
       </dl>
@@ -118,7 +118,7 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
       <form method="post" action="/businesses/<?= $id ?>/status" class="row">
         <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
         <select name="status" aria-label="Статус" data-autosubmit>
-          <?php foreach (Status::LABELS as $k => $l): ?><option value="<?= e($k) ?>"<?= $b['status'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
+          <?php foreach (Status::options($b['status']) as $k => $l): ?><option value="<?= e($k) ?>"<?= $b['status'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
         </select>
         <noscript><button class="btn btn-sm">Запиши</button></noscript>
       </form>
@@ -156,7 +156,9 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
     </section>
 
     <section class="card">
-      <div class="row row-between"><h2>Съобщение</h2><button type="button" class="btn btn-sm" data-copy="outreach-text">Копирай</button></div>
+      <div class="row row-between"><h2>Съобщение</h2>
+        <span class="row"><button type="button" class="btn btn-sm" data-copy="outreach-text">Копирай</button><?= write_button($b + ['demo_url' => $demoUrl], (string) $app->settings->get('outreach_template', ''), (string) $app->settings->get('my_name', ''), 'btn btn-sm btn-k btn-write') ?></span></div>
+      <?= contact_links($b) ?>
       <div class="outreach" id="outreach-text"><?= e($outreach) ?></div>
       <p class="muted small">Шаблонът се сменя от <a href="/settings">Настройки</a>.</p>
     </section>

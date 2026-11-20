@@ -34,8 +34,14 @@ final class DashboardController
                 }
             }
         }
+        $biz = $this->app->businesses;
         return $this->app->page('dashboard', [
-            'title' => 'Табло',
+            'title' => 'Днес',
+            'forOffer' => $biz->search(['status' => 'qualified', 'relevance' => 'all', 'per_page' => 10])['rows'],
+            'researching' => $biz->search(['status' => 'researching', 'relevance' => 'all', 'per_page' => 10])['rows'],
+            'newWeek' => $biz->search(['relevance' => 'high', 'created_days' => 7, 'per_page' => 10])['rows'],
+            'template' => (string) $this->app->settings->get('outreach_template', ''),
+            'myName' => (string) $this->app->settings->get('my_name', ''),
             'stats' => $this->app->businesses->stats(),
             'byStatus' => $this->app->businesses->countByStatus(),
             'due' => $this->app->offers->all('due'),

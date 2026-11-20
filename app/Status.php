@@ -11,13 +11,13 @@ final class Status
         'new' => 'Нов',
         'researching' => 'Проучва се',
         'researched' => 'Проучен',
-        'qualified' => 'Квалифициран',
+        'qualified' => 'За оферта',
         'demo_generating' => 'Демо се прави',
         'demo_awaiting_approval' => 'Демо чака одобрение',
         'demo_approved' => 'Демо одобрено',
         'ready_for_outreach' => 'Готов за писане',
         'offer_sent' => 'Пусната оферта',
-        'replied' => 'Отговориха',
+        'replied' => 'Разговор',
         'negotiation' => 'Преговори',
         'won' => 'Спечелен',
         'lost' => 'Загубен',
@@ -25,17 +25,52 @@ final class Status
         'archived' => 'Архив',
     ];
 
-    /** Kanban groups: several statuses share a column to keep the board readable on a laptop. */
+    /** The 7 stages the owner works with. Other values exist for older records / later phases only. */
+    public const VISIBLE = ['new', 'researching', 'qualified', 'offer_sent', 'replied', 'won', 'lost'];
+
+    /** Kanban columns = the visible stages. */
     public const KANBAN = [
-        'Нови' => ['new', 'researching', 'researched'],
-        'Квалифицирани' => ['qualified'],
-        'Демо' => ['demo_generating', 'demo_awaiting_approval', 'demo_approved'],
-        'За писане' => ['ready_for_outreach'],
+        'Нови' => ['new'],
+        'Проучвам' => ['researching'],
+        'За оферта' => ['qualified'],
         'Пусната оферта' => ['offer_sent'],
-        'Разговор' => ['replied', 'negotiation'],
+        'Разговор' => ['replied'],
         'Спечелени' => ['won'],
         'Загубени' => ['lost'],
     ];
+
+    /** Website situation as the owner sees it (derived from website_url / social links / check result). */
+    public const WEB_KIND = [
+        'none' => 'Няма сайт',
+        'social' => 'Само Instagram/FB',
+        'has' => 'Има сайт',
+        'unknown' => 'Непроверено',
+    ];
+
+    /** @param array<string,mixed> $b */
+    public static function webKind(array $b): string
+    {
+        if (!empty($b['website_url'])) {
+            return 'has';
+        }
+        if (!empty($b['instagram_url']) || !empty($b['facebook_url'])) {
+            return 'social';
+        }
+        return ($b['website_status'] ?? '') === 'none' ? 'none' : 'unknown';
+    }
+
+    /** Stage options for a select: the visible ones, plus the current value if it is an old one. @return array<string,string> */
+    public static function options(string $current = ''): array
+    {
+        $out = [];
+        foreach (self::VISIBLE as $k) {
+            $out[$k] = self::LABELS[$k];
+        }
+        if ($current !== '' && !isset($out[$current]) && isset(self::LABELS[$current])) {
+            $out[$current] = self::LABELS[$current];
+        }
+        return $out;
+    }
 
     public const CHANNELS = [
         'instagram' => 'Instagram',

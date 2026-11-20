@@ -1,15 +1,19 @@
 <?php
 /** @var string $content @var string $title @var string $path @var string $csrf @var ?string $user @var int $dueFollowUps @var list<array{string,string}> $flashes */
 $nav = [
-    '/' => 'Табло',
-    '/businesses' => 'Бизнеси',
-    '/businesses?status=researching' => 'Проучвам',
-    '/kanban' => 'Kanban',
-    '/offers' => 'Оферти',
-    '/jobs' => 'Сканирания',
-    '/duplicates' => 'Дубликати',
-    '/businesses?status=rejected' => 'Отхвърлени',
-    '/settings' => 'Настройки',
+    'Работа' => [
+        '/' => 'Днес',
+        '/businesses?status=researching' => 'Проучвам',
+        '/kanban' => 'Kanban',
+        '/offers' => 'Оферти',
+    ],
+    'База' => [
+        '/businesses' => 'Бизнеси',
+        '/jobs' => 'Сканирания',
+        '/duplicates' => 'Дубликати',
+        '/businesses?status=rejected' => 'Отхвърлени',
+    ],
+    '' => ['/settings' => 'Настройки'],
 ];
 $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 ?>
@@ -21,8 +25,8 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 <meta name="robots" content="noindex, nofollow">
 <meta name="csrf" content="<?= e($csrf) ?>">
 <title><?= e($title ?? 'BarberLead') ?> · BarberLead</title>
-<link rel="stylesheet" href="/assets/app.css?v=7">
-<script src="/assets/app.js?v=4" defer></script>
+<link rel="stylesheet" href="/assets/app.css?v=9">
+<script src="/assets/app.js?v=5" defer></script>
 </head>
 <body>
 <?php if ($user === null): ?>
@@ -33,13 +37,16 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
   <aside class="side" aria-label="Навигация">
     <a class="brand" href="/"><b>BARBER</b>LEAD<small>КЛИЕНТИ · ДЕМА · ОФЕРТИ</small></a>
     <nav class="nav">
-      <?php foreach ($nav as $href => $label): ?>
+      <?php foreach ($nav as $group => $items): ?>
+      <?php if ($group !== ''): ?><span class="nav-group"><?= e($group) ?></span><?php endif; ?>
+      <?php foreach ($items as $href => $label): ?>
         <a href="<?= e($href) ?>" class="<?= nav_active($path, $href) ? 'on' : '' ?>"><?= e($label) ?>
           <?php if ($href === '/offers' && $dueFollowUps > 0): ?><span class="pill" title="Напомняния за днес"><?= (int) $dueFollowUps ?></span><?php endif; ?>
           <?php if ($href === '/businesses?status=researching' && $researchingCount > 0): ?><span class="pill"><?= (int) $researchingCount ?></span><?php endif; ?>
           <?php if ($href === '/businesses?status=rejected' && $rejectedCount > 0): ?><span class="n-muted"><?= (int) $rejectedCount ?></span><?php endif; ?>
           <?php if ($href === '/duplicates' && $openDuplicates > 0): ?><span class="pill" title="За преглед"><?= (int) $openDuplicates ?></span><?php endif; ?>
         </a>
+      <?php endforeach; ?>
       <?php endforeach; ?>
     </nav>
     <div class="side-areas">

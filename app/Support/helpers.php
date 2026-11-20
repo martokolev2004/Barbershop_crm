@@ -27,6 +27,62 @@ function website_badge(string $ws): string
     return '<span class="badge web-' . e($ws) . '">' . e(Status::WEBSITE[$ws] ?? $ws) . '</span>';
 }
 
+/** Website situation badge: Няма сайт / Само Instagram/FB / Има сайт / Непроверено. @param array<string,mixed> $b */
+function web_kind_badge(array $b): string
+{
+    $k = Status::webKind($b);
+    $extra = $k === 'has' && in_array($b['website_status'] ?? '', ['weak', 'good'], true) ? ' · ' . Status::WEBSITE[$b['website_status']] : '';
+    return '<span class="badge wk-' . e($k) . '">' . e(Status::WEB_KIND[$k] . $extra) . '</span>';
+}
+
+/** The outreach message for one business (template from Настройки). @param array<string,mixed> $b */
+function outreach_text(string $template, array $b, string $myName): string
+{
+    return strtr($template, [
+        '{name}' => (string) $b['name'],
+        '{demo_url}' => (string) ($b['demo_url'] ?? '') !== '' ? (string) $b['demo_url'] : '[линк към демото]',
+        '{my_name}' => $myName,
+    ]);
+}
+
+/** Where to write to the business: Instagram first, then Facebook. @param array<string,mixed> $b */
+function write_target(array $b): ?string
+{
+    return safe_href($b['instagram_url'] ?? null) ?? safe_href($b['facebook_url'] ?? null);
+}
+
+/** Small contact links (all for writing, no calls). @param array<string,mixed> $b */
+function contact_links(array $b): string
+{
+    $out = [];
+    if ($u = safe_href($b['instagram_url'] ?? null)) {
+        $out[] = '<a class="chip" href="' . e($u) . '" target="_blank" rel="noopener noreferrer" title="Instagram">Instagram</a>';
+    }
+    if ($u = safe_href($b['facebook_url'] ?? null)) {
+        $out[] = '<a class="chip" href="' . e($u) . '" target="_blank" rel="noopener noreferrer" title="Facebook">Facebook</a>';
+    }
+    $phone = (string) ($b['phone_normalized'] ?? '');
+    if (preg_match('/^\+3598[789]\d{7}$/', $phone)) {
+        $out[] = '<a class="chip" href="viber://chat?number=' . e(rawurlencode($phone)) . '" title="Viber">Viber</a>';
+        $out[] = '<a class="chip" href="https://wa.me/' . e(ltrim($phone, '+')) . '" target="_blank" rel="noopener noreferrer" title="WhatsApp">WhatsApp</a>';
+    }
+    if (!empty($b['email'])) {
+        $out[] = '<a class="chip" href="mailto:' . e($b['email']) . '" title="Имейл">Имейл</a>';
+    }
+    if ($b['lat'] !== null && $b['lng'] !== null) {
+        $out[] = '<a class="chip" href="' . e('https://www.google.com/maps/search/?api=1&query=' . $b['lat'] . ',' . $b['lng']) . '" target="_blank" rel="noopener noreferrer" title="Карта">Карта</a>';
+    }
+    return $out ? '<span class="chips">' . implode('', $out) . '</span>' : '';
+}
+
+/** "Пиши": copies the message and opens Instagram/Facebook of the business. @param array<string,mixed> $b */
+function write_button(array $b, string $template, string $myName, string $class = 'btn btn-sm btn-write'): string
+{
+    $target = write_target($b);
+    return '<button type="button" class="' . e($class) . '" data-write data-message="' . e(outreach_text($template, $b, $myName)) . '"'
+        . ($target ? ' data-open="' . e($target) . '"' : '') . ' title="' . ($target ? 'Копира съобщението и отваря профила' : 'Копира съобщението (няма Instagram/Facebook)') . '">Пиши</button>';
+}
+
 function fmt_date(?string $dt, bool $time = false): string
 {
     if ($dt === null || $dt === '') {
@@ -118,7 +174,7 @@ function biz_list_url(array $filters, ?array $area, array $over = []): string
     return url('/businesses', array_merge([
         'area' => $area['id'] ?? null, 'q' => $filters['q'], 'status' => $filters['status'], 'web' => $filters['website'],
         'rel' => ($filters['relevance'] ?? 'high') !== 'high' ? $filters['relevance'] : null,
-        'sort' => $filters['sort'] !== 'updated' ? $filters['sort'] : null, 'dir' => $filters['dir'] !== 'desc' ? $filters['dir'] : null,
+        'sort' => $filters['sort'] !== 'reviews' ? $filters['sort'] : null, 'dir' => $filters['dir'] !== 'desc' ? $filters['dir'] : null,
     ], $over));
 }
 

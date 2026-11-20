@@ -60,6 +60,8 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
+        $this->assertSame('0009_restore_template', $m->rollback());
+        $this->assertSame('0008_simplify_stages', $m->rollback());
         $this->assertSame('0007_prime_is_barbershop', $m->rollback());
         $this->assertSame('0006_schedule_sofia', $m->rollback());
         // 0005 drops tables: refused without force
@@ -81,6 +83,8 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
+        $m->rollback(); // 0009 template fix (no-op)
+        $m->rollback(); // 0008 stages (no-op)
         $m->rollback(); // 0007 Prime relevance
         $m->rollback(); // 0006 schedules
         $m->rollback(true); // 0005 discovery tables
@@ -117,5 +121,18 @@ final class MigrationAndBackupTest extends TestCase
         file_put_contents($bad, gzencode('DROP DATABASE mysql;'));
         $this->expectException(\RuntimeException::class);
         (new Backup(TestDatabase::fresh(false), $this->dir))->restore($bad);
+    }
+
+    public function testBrokenTemplateIsRestored(): void
+    {
+        $db = TestDatabase::fresh();
+        $db->exec("UPDATE settings SET value = 'settings' WHERE name = 'outreach_template'");
+        $db->exec("UPDATE settings SET value = 'Иван' WHERE name = 'my_name'");
+        $db->exec("DELETE FROM schema_migrations WHERE version = '0009_restore_template'");
+        (new Migrator($db, BL_ROOT . '/migrations'))->migrate();
+        $tpl = (string) $db->query("SELECT value FROM settings WHERE name = 'outreach_template'")->fetchColumn();
+        $this->assertStringStartsWith('Здравейте! Казвам се {my_name}', $tpl);
+        $this->assertStringContainsString("\n{demo_url}", $tpl, 'line breaks preserved');
+        $this->assertSame('Иван', $db->query("SELECT value FROM settings WHERE name = 'my_name'")->fetchColumn(), 'other settings untouched');
     }
 }
