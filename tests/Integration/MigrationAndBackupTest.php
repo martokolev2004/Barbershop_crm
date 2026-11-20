@@ -60,6 +60,7 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
+        $this->assertSame('0007_prime_is_barbershop', $m->rollback());
         $this->assertSame('0006_schedule_sofia', $m->rollback());
         // 0005 drops tables: refused without force
         try {
@@ -80,6 +81,7 @@ final class MigrationAndBackupTest extends TestCase
     {
         $db = TestDatabase::fresh();
         $m = new Migrator($db, BL_ROOT . '/migrations');
+        $m->rollback(); // 0007 Prime relevance
         $m->rollback(); // 0006 schedules
         $m->rollback(true); // 0005 discovery tables
         $m->rollback(); // removes Prime import

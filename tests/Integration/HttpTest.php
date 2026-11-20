@@ -183,14 +183,26 @@ final class HttpTest extends TestCase
         $this->assertSame($key, $this->db->query("SELECT value FROM settings WHERE name = 'google_api_key'")->fetchColumn());
     }
 
-    public function testRelevanceFilterHidesWomensSalonsByDefault(): void
+    public function testBarbershopsAndSalonsAreSeparateTabs(): void
     {
         $this->login();
-        $this->db->exec("INSERT INTO businesses (name, name_normalized, relevance) VALUES ('FIXTURE Lady Salon', 'lady', 'low'), ('FIXTURE Gents', 'gents', 'high')");
+        $this->db->exec("INSERT INTO businesses (id, name, name_normalized, relevance) VALUES
+            (960, 'FIXTURE Lady Salon', 'lady', 'low'), (961, 'FIXTURE Gents', 'gents', 'high'), (962, 'FIXTURE Hair Studio', 'hair', 'medium')");
         $list = $this->req('GET', '/businesses')->body;
-        $this->assertStringContainsString('FIXTURE Gents', $list);
+        $this->assertStringContainsString('FIXTURE Gents', $list, 'barbershops are the default tab');
+        $this->assertStringNotContainsString('FIXTURE Hair Studio', $list);
         $this->assertStringNotContainsString('FIXTURE Lady Salon', $list);
+        $this->assertMatchesRegularExpression('/Бръснарници <span>2<\/span>/', $list, 'Gents + the imported Prime');
+        $this->assertMatchesRegularExpression('/Салони <span>1<\/span>/', $list);
+        $this->assertStringContainsString('FIXTURE Hair Studio', $this->req('GET', '/businesses', [], ['rel' => 'medium'])->body);
         $this->assertStringContainsString('FIXTURE Lady Salon', $this->req('GET', '/businesses', [], ['rel' => 'all'])->body);
+
+        // manual move: salon → barbershop, kept by rescans
+        $this->req('POST', '/businesses/962/relevance', ['relevance' => 'high', 'back' => '/businesses?rel=medium']);
+        $this->req('GET', '/');
+        $this->assertStringContainsString('FIXTURE Hair Studio', $this->req('GET', '/businesses')->body);
+        $this->assertSame('Ръчно: Бръснарници', $this->db->query('SELECT relevance_reason FROM businesses WHERE id = 962')->fetchColumn());
+        $this->assertSame(422, $this->req('POST', '/businesses/962/relevance', ['relevance' => 'bogus'])->status);
     }
 
     public function testRejectHidesBusinessAndRestoreBringsItBack(): void

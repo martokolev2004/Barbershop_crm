@@ -73,6 +73,7 @@ final class App
         $r->post('/businesses/{id}/note', 'biz.note');
         $r->post('/businesses/{id}/reject', 'biz.reject');
         $r->post('/businesses/{id}/restore', 'biz.restore');
+        $r->post('/businesses/{id}/relevance', 'biz.relevance');
         $r->post('/businesses/{id}/demos', 'biz.demo');
         $r->post('/businesses/{id}/offer', 'offer.sent');
         $r->get('/offers', 'offer.index');
@@ -114,6 +115,7 @@ final class App
             'biz.note' => (new BusinessController($this))->note($req, $id),
             'biz.reject' => (new BusinessController($this))->reject($req, $id),
             'biz.restore' => (new BusinessController($this))->restore($req, $id),
+            'biz.relevance' => (new BusinessController($this))->relevance($req, $id),
             'biz.demo' => (new BusinessController($this))->addDemo($req, $id),
             'offer.sent' => (new OfferController($this))->markSent($req, $id),
             'offer.index' => (new OfferController($this))->index($req),

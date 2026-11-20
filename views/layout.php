@@ -21,7 +21,7 @@ $selectedArea = isset($area) && is_array($area) ? (int) $area['id'] : 0;
 <meta name="robots" content="noindex, nofollow">
 <meta name="csrf" content="<?= e($csrf) ?>">
 <title><?= e($title ?? 'BarberLead') ?> · BarberLead</title>
-<link rel="stylesheet" href="/assets/app.css?v=5">
+<link rel="stylesheet" href="/assets/app.css?v=7">
 <script src="/assets/app.js?v=4" defer></script>
 </head>
 <body>

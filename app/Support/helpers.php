@@ -117,7 +117,7 @@ function biz_list_url(array $filters, ?array $area, array $over = []): string
 {
     return url('/businesses', array_merge([
         'area' => $area['id'] ?? null, 'q' => $filters['q'], 'status' => $filters['status'], 'web' => $filters['website'],
-        'rel' => ($filters['relevance'] ?? 'relevant') !== 'relevant' ? $filters['relevance'] : null,
+        'rel' => ($filters['relevance'] ?? 'high') !== 'high' ? $filters['relevance'] : null,
         'sort' => $filters['sort'] !== 'updated' ? $filters['sort'] : null, 'dir' => $filters['dir'] !== 'desc' ? $filters['dir'] : null,
     ], $over));
 }
@@ -148,4 +148,13 @@ function duration(?string $from, ?string $to): string
     }
     $sec = max(0, (int) strtotime($to) - (int) strtotime($from));
     return $sec < 60 ? $sec . ' сек' : intdiv($sec, 60) . ' мин ' . ($sec % 60) . ' сек';
+}
+
+/** "→ Салон" / "→ Бръснарница" quick move button. */
+function relevance_button(int $id, string $relevance, string $label, string $csrf): string
+{
+    $back = (string) ($_SERVER['REQUEST_URI'] ?? '/businesses');
+    return '<form method="post" action="/businesses/' . $id . '/relevance" class="inline">'
+        . '<input type="hidden" name="_csrf" value="' . e($csrf) . '"><input type="hidden" name="relevance" value="' . e($relevance) . '">'
+        . '<input type="hidden" name="back" value="' . e($back) . '"><button class="btn btn-sm" title="Премести">' . e($label) . '</button></form>';
 }

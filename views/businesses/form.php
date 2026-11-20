@@ -52,8 +52,8 @@ $action = $id ? "/businesses/$id" : '/businesses';
       <label>Сайт<select name="website_status">
         <?php foreach (Status::WEBSITE as $k => $l): ?><option value="<?= e($k) ?>"<?= ($v['website_status'] ?? 'unknown') === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
       </select><?= form_error($errors, 'website_status') ?></label>
-      <label>Подходящ ли е<select name="relevance">
-        <?php foreach (['high' => 'Да – бръснарница / мъжки фризьор', 'medium' => 'Може би – фризьорски салон', 'low' => 'Не – дамски/козметичен салон'] as $k => $l): ?><option value="<?= e($k) ?>"<?= ($v['relevance'] ?? 'medium') === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
+      <label>Вид<select name="relevance">
+        <?php foreach (['high' => 'Бръснарница / мъжки фризьор', 'medium' => 'Фризьорски салон', 'low' => 'Неподходящ (дамски/козметика)'] as $k => $l): ?><option value="<?= e($k) ?>"<?= ($v['relevance'] ?? 'high') === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
       </select><?= form_error($errors, 'relevance') ?></label>
       <label>Ръчна оценка (0–100, празно = автоматична)<input name="lead_score_override" inputmode="numeric" value="<?= form_value($v, 'lead_score_override') ?>"><?= form_error($errors, 'lead_score_override') ?></label>
     </div>

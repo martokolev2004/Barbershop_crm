@@ -27,7 +27,8 @@ use BarberLead\Status;
 
 <?php if ($areaStats !== null): ?>
 <div class="stats">
-  <div class="stat"><strong><?= $areaStats['total'] ?></strong><span>открити бизнеса</span></div>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['rel' => 'high', 'page' => null])) ?>"><strong><?= $areaStats['barbershops'] ?></strong><span>бръснарници</span></a>
+  <a class="stat" href="<?= e(biz_list_url($filters, $area, ['rel' => 'medium', 'page' => null])) ?>"><strong><?= $areaStats['salons'] ?></strong><span>фризьорски салони</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['status' => 'qualified', 'page' => null])) ?>"><strong><?= $areaStats['qualified'] ?></strong><span>квалифицирани</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'none', 'page' => null])) ?>"><strong><?= $areaStats['no_website'] ?></strong><span>без открит сайт</span></a>
   <a class="stat" href="<?= e(biz_list_url($filters, $area, ['web' => 'weak', 'page' => null])) ?>"><strong><?= $areaStats['weak_website'] ?></strong><span>слаб сайт</span></a>
@@ -108,6 +109,11 @@ use BarberLead\Status;
 <?php endif; ?>
 <?php endif; ?>
 
+<div class="tabs" role="tablist">
+  <?php foreach (['high' => 'Бръснарници', 'medium' => 'Салони', 'low' => 'Неподходящи', 'all' => 'Всички'] as $k => $l): ?>
+    <a role="tab" class="tab<?= $filters['relevance'] === $k ? ' on' : '' ?>" href="<?= e(biz_list_url($filters, $area, ['rel' => $k, 'page' => null])) ?>"><?= e($l) ?> <span><?= (int) ($tabCounts[$k] ?? 0) ?></span></a>
+  <?php endforeach; ?>
+</div>
 <form class="filters" method="get" action="/businesses" role="search">
   <?php if ($area): ?><input type="hidden" name="area" value="<?= (int) $area['id'] ?>"><?php endif; ?>
   <input type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="Име, адрес, телефон, квартал, Instagram, сайт…" aria-label="Търсене">
@@ -119,9 +125,7 @@ use BarberLead\Status;
     <option value="">Всякакъв сайт</option>
     <?php foreach (Status::WEBSITE as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['website'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
   </select>
-  <select name="rel" aria-label="Подходящи" data-autosubmit>
-    <?php foreach (['relevant' => 'Подходящи (без дамски/козметика)', 'high' => 'Само бръснарници / мъжки', 'medium' => 'Само фризьори (неясно)', 'low' => 'Неподходящи', 'all' => 'Всички'] as $k => $l): ?><option value="<?= e($k) ?>"<?= $filters['relevance'] === $k ? ' selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
-  </select>
+  <input type="hidden" name="rel" value="<?= e($filters['relevance']) ?>">
   <button class="btn">Търси</button>
   <?php if ($filters['q'] !== '' || $filters['status'] !== '' || $filters['website'] !== ''): ?><a class="btn" href="<?= e(url('/businesses', ['area' => $area['id'] ?? null])) ?>">Изчисти</a><?php endif; ?>
 </form>
@@ -158,10 +162,12 @@ use BarberLead\Status;
       <td data-label="Оценка"><?= $score !== null ? '<span class="score' . ((int) $score >= 70 ? ' hi' : '') . '">' . (int) $score . '</span>' : '<span class="muted">—</span>' ?></td>
       <td data-label="Рейтинг" class="nowrap"><?= $b['rating'] !== null ? e(number_format((float) $b['rating'], 1, ',', '')) . ' ★' . ($b['reviews_count'] !== null ? ' <span class="muted small">(' . (int) $b['reviews_count'] . ')</span>' : '') : '—' ?></td>
       <td data-label="Обновен" class="nowrap"><?= fmt_date($b['updated_at']) ?></td>
-      <td class="nowrap">
+      <td class="actions">
         <?php if ($b['status'] === 'rejected'): ?>
           <form method="post" action="/businesses/<?= (int) $b['id'] ?>/restore"><input type="hidden" name="_csrf" value="<?= e($csrf) ?>"><input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? '/businesses') ?>"><button class="btn btn-sm">Върни</button></form>
         <?php else: ?>
+          <?php if ($b['relevance'] === 'high'): ?><?= relevance_button((int) $b['id'], 'medium', '→ Салон', $csrf) ?>
+          <?php else: ?><?= relevance_button((int) $b['id'], 'high', '→ Бръснарница', $csrf) ?><?php endif; ?>
           <?php if ($b['status'] === 'researching'): ?>
             <?= status_button((int) $b['id'], 'qualified', 'Квалифициран', $csrf) ?>
           <?php elseif (in_array($b['status'], ['new', 'researched'], true)): ?>

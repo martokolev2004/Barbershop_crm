@@ -183,6 +183,41 @@ final class BusinessRepository
         return true;
     }
 
+    /**
+     * How many businesses each tab (barbershops / salons / unsuitable) would show with the other filters applied.
+     * @param array<string,mixed> $f
+     * @return array<string,int>
+     */
+    public function countsByRelevance(array $f): array
+    {
+        $f['relevance'] = 'all';
+        [$where, $params] = $this->where($f);
+        $stmt = $this->db->prepare("SELECT b.relevance, COUNT(*) c FROM businesses b WHERE $where GROUP BY b.relevance");
+        $stmt->execute($params);
+        $out = ['high' => 0, 'medium' => 0, 'low' => 0];
+        foreach ($stmt->fetchAll() as $r) {
+            $out[$r['relevance']] = (int) $r['c'];
+        }
+        $out['all'] = array_sum($out);
+        return $out;
+    }
+
+    /** Owner's manual call: barbershop / salon / unsuitable. Rescans never change it. */
+    public function setRelevance(int $id, string $relevance, string $actor): bool
+    {
+        $labels = ['high' => 'Бръснарници', 'medium' => 'Салони', 'low' => 'Неподходящи'];
+        if (!isset($labels[$relevance])) {
+            throw new InvalidArgumentException('Invalid relevance');
+        }
+        $stmt = $this->db->prepare('UPDATE businesses SET relevance = ?, relevance_reason = ? WHERE id = ? AND relevance <> ?');
+        $stmt->execute([$relevance, 'Ръчно: ' . $labels[$relevance], $id, $relevance]);
+        if ($stmt->rowCount() === 0) {
+            return false;
+        }
+        $this->events->add($id, 'edited', 'Преместен в ' . $labels[$relevance], $actor);
+        return true;
+    }
+
     public function countRejected(): int
     {
         return (int) $this->db->query("SELECT COUNT(*) FROM businesses WHERE status = 'rejected'")->fetchColumn();
@@ -241,7 +276,9 @@ final class BusinessRepository
                     COALESCE(SUM(status = 'offer_sent'), 0) AS offer_sent,
                     COALESCE(SUM(status IN ('replied','negotiation')), 0) AS talking,
                     COALESCE(SUM(status = 'won'), 0) AS won,
-                    COALESCE(SUM(created_at >= NOW() - INTERVAL 15 DAY), 0) AS new_recent
+                    COALESCE(SUM(created_at >= NOW() - INTERVAL 15 DAY), 0) AS new_recent,
+                    COALESCE(SUM(relevance = 'high'), 0) AS barbershops,
+                    COALESCE(SUM(relevance = 'medium'), 0) AS salons
                     , (SELECT COUNT(*) FROM businesses WHERE " . str_replace("relevance IN ('high','medium')", "relevance = 'low'", $where) . ") AS low_relevance
              FROM businesses WHERE $where"
         )->fetch();

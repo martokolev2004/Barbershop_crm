@@ -40,7 +40,10 @@ $score = $b['lead_score_override'] ?? $b['lead_score'];
       <h2>Данни</h2>
       <dl class="kv">
         <dt>Квартал</dt><dd><?= e($areaLabel) ?><?= $b['geo_confidence'] === 'approx' ? ' <span class="geo-approx">(приблизително)</span>' : '' ?></dd>
-        <?php if ($b['relevance_reason']): ?><dt>Подходящ</dt><dd><?= e($b['relevance_reason']) ?></dd><?php endif; ?>
+        <dt>Вид</dt><dd><?= relevance_badge($b['relevance']) ?><?= $b['relevance_reason'] ? ' <span class="muted small">' . e($b['relevance_reason']) . '</span>' : '' ?>
+          <div class="row small">
+            <?php foreach (['high' => '→ Бръснарница', 'medium' => '→ Салон', 'low' => '→ Неподходящ'] as $rk => $rl): if ($rk === $b['relevance']) continue; ?><?= relevance_button($id, $rk, $rl, $csrf) ?><?php endforeach; ?>
+          </div></dd>
         <dt>Адрес</dt><dd><?= unknown_or($b['address']) ?></dd>
         <dt>Телефон</dt><dd><?= $b['phone'] ? '<a href="tel:' . e($b['phone_normalized'] ?? $b['phone']) . '">' . e($b['phone']) . '</a>' : unknown_or(null) ?></dd>
         <dt>Имейл</dt><dd><?= $b['email'] ? '<a href="mailto:' . e($b['email']) . '">' . e($b['email']) . '</a>' : unknown_or(null) ?></dd>

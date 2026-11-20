@@ -54,8 +54,8 @@ final class Status
     ];
 
     public const RELEVANCE = [
-        'high' => 'Бръснарница / мъжки',
-        'medium' => 'Фризьор (неясно)',
+        'high' => 'Бръснарница',
+        'medium' => 'Салон',
         'low' => 'Неподходящ',
     ];
 

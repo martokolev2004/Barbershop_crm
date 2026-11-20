@@ -61,7 +61,7 @@ final class BusinessInput
             $errors['area_id'] = 'Невалиден квартал.';
         }
 
-        $rel = Input::str($in, 'relevance') ?: 'medium';
+        $rel = Input::str($in, 'relevance') ?: 'high';
         if (!in_array($rel, ['high', 'medium', 'low'], true)) {
             $errors['relevance'] = 'Невалидна стойност.';
         }

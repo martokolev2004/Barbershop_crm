@@ -24,13 +24,13 @@ final class BusinessController
         $areaIds = $area ? $this->app->areas->descendantIds((int) $area['id']) : null;
         $status = $req->str('status');
         $website = $req->str('web');
-        $rel = $req->str('rel', 'relevant');
+        $rel = $req->str('rel', 'high');
         $filters = [
             'q' => mb_substr($req->str('q'), 0, 100),
             'area_ids' => $areaIds ?? [],
             'status' => Status::isValid($status) ? $status : '',
             'website' => isset(Status::WEBSITE[$website]) ? $website : '',
-            'relevance' => in_array($rel, ['relevant', 'high', 'medium', 'low', 'all'], true) ? $rel : 'relevant',
+            'relevance' => in_array($rel, ['relevant', 'high', 'medium', 'low', 'all'], true) ? $rel : 'high',
             'sort' => $req->str('sort', 'updated'),
             'dir' => $req->str('dir', 'desc'),
             'page' => $req->int('page', 1),
@@ -43,6 +43,7 @@ final class BusinessController
             'areaPath' => $area ? $this->app->areas->path((int) $area['id']) : [],
             'areaStats' => $area ? $this->app->businesses->stats($areaIds) : null,
             'result' => $result,
+            'tabCounts' => $this->app->businesses->countsByRelevance($filters),
             'tree' => $this->app->areas->tree(),
             'counts' => $this->app->areas->totalCounts(),
             'scans' => $area ? $this->scans((int) $area['id']) : [],
@@ -206,6 +207,18 @@ final class BusinessController
         }
         $this->app->businesses->reject($id, mb_substr($req->str('reason'), 0, 300), $this->app->actor());
         $this->app->session->flash('ok', '„' . $b['name'] . '“ е преместен в Отхвърлени.');
+        $back = $req->str('back');
+        return Response::redirect($back !== '' ? $back : "/businesses/$id");
+    }
+
+    public function relevance(Request $req, int $id): Response
+    {
+        $rel = $req->str('relevance');
+        if ($this->app->businesses->find($id) === null || !in_array($rel, ['high', 'medium', 'low'], true)) {
+            return $this->app->error(422, 'Невалидна стойност.');
+        }
+        $this->app->businesses->setRelevance($id, $rel, $this->app->actor());
+        $this->app->session->flash('ok', 'Преместен в ' . ['high' => 'Бръснарници', 'medium' => 'Салони', 'low' => 'Неподходящи'][$rel] . '.');
         $back = $req->str('back');
         return Response::redirect($back !== '' ? $back : "/businesses/$id");
     }
